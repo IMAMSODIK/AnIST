@@ -1,0 +1,11 @@
+Penyelesaian Implementasi Sistem Aplikasi Upgrade/Baru
+
+
+Pengembangan Implementasi sistem terintegrasi yang berdampak pada peningkatan produktivitas/efisiensi atau yang berdampak pada kepuasan pelanggan secara berkelanjutan: 1. Integrasi Mesin Timbangan Uang Logam (Produksi) 2. Sistem Layanan Reimburs Kesehatan (SDM) 3. Implementasi Pakta Integritas Digital (Risk Management) 4. Data Acquisition Single Note Inspection (Produksi) 5. Implementasi BAST Digital (Dafasum) 6. Pengembangan Sistem Pendukung Payroll - Time Management (SDM) 7. Upgrade Teknologi Platform OMTI (Corporate Strategy dan Performance)
+
+
+
+ANIS
+
+- kenapa bisa kpi terpenuhi dan tidak terpenuhi
+- screen shot measurment lain
