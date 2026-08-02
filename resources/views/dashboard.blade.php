@@ -7,7 +7,7 @@
     <div class="flex items-center justify-between">
         <div>
             <h2 class="text-2xl font-bold text-slate-800 dark:text-white">Executive Dashboard</h2>
-            <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">AI-Based KPI Monitoring & Evidence Validation</p>
+            <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">An Intelligent Strategic Tool — KPI Monitoring & Evidence Validation</p>
         </div>
         <form method="GET" class="flex items-center gap-3">
             <select name="year" onchange="this.form.submit()"
