@@ -20,7 +20,7 @@ class StoreMeasurementRequest extends FormRequest
             'definition' => 'nullable|string',
             'formula' => 'nullable|string|in:Higher is Better,Lower is Better,Exact Target',
             'unit' => 'nullable|string|max:50',
-            'weight' => 'required|numeric|min:0|max:100',
+            'weight' => 'nullable|numeric|min:0|max:100',
         ];
     }
 
@@ -31,5 +31,19 @@ class StoreMeasurementRequest extends FormRequest
             'formula.in' => 'Formula must be one of: Higher is Better, Lower is Better, Exact Target',
             'weight.max' => 'Weight cannot exceed 100%',
         ];
+    }
+
+    /**
+     * weight is intentionally hidden from the form to avoid confusing users
+     * during measurement entry. It defaults to 100 (equal weighting) so the
+     * weighted-average KPI calculation still works correctly.
+     */
+    public function validated($key = null, $default = null)
+    {
+        $data = parent::validated($key, $default);
+        if (is_array($data) && !isset($data['weight'])) {
+            $data['weight'] = 100;
+        }
+        return $data;
     }
 }

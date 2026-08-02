@@ -38,7 +38,7 @@
                 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Definition</label>
                 <textarea name="definition" rows="3" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-indigo-200 outline-none">{{ old('definition') }}</textarea>
             </div>
-            <div class="grid grid-cols-3 gap-4">
+            <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Formula</label>
                     <select name="formula" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm">
@@ -51,11 +51,6 @@
                 <div>
                     <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Unit</label>
                     <input type="text" name="unit" value="{{ old('unit') }}" placeholder="%, Number, Index" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Weight (%)</label>
-                    <input type="number" name="weight" value="{{ old('weight', 0) }}" step="0.01" min="0" max="100" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm">
-                    @error('weight')<p class="text-rose-500 text-xs mt-1">{{ $message }}</p>@enderror
                 </div>
             </div>
             <div class="flex justify-end gap-3 pt-4">

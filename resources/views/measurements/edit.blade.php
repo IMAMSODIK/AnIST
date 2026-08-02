@@ -34,7 +34,7 @@
                 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Definition</label>
                 <textarea name="definition" rows="3" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm">{{ old('definition', $measurement->definition) }}</textarea>
             </div>
-            <div class="grid grid-cols-3 gap-4">
+            <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Formula</label>
                     <select name="formula" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm">
@@ -47,10 +47,6 @@
                 <div>
                     <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Unit</label>
                     <input type="text" name="unit" value="{{ old('unit', $measurement->unit) }}" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Weight (%)</label>
-                    <input type="number" name="weight" value="{{ old('weight', $measurement->weight) }}" step="0.01" min="0" max="100" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm">
                 </div>
             </div>
             <div class="flex justify-end gap-3 pt-4">
