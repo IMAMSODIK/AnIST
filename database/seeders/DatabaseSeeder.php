@@ -29,10 +29,10 @@ class DatabaseSeeder extends Seeder
         );
 
         // Seed master data
-        $this->call([
-            MeasurementSeeder::class,
-            TargetSeeder::class,
-            InitiativeSeeder::class,
-        ]);
+        // $this->call([
+        //     MeasurementSeeder::class,
+        //     TargetSeeder::class,
+        //     InitiativeSeeder::class,
+        // ]);
     }
 }
