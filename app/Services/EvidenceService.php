@@ -152,6 +152,16 @@ class EvidenceService
 
     protected function updateRealisasi(Upload $upload, float $value): Realisasi
     {
+        // SUM realisasi dari semua AiResult yang valid untuk measurement+quarter+year
+        // ini sehingga setiap upload evidence baru menambah total, bukan menimpa.
+        $totalRealisasi = AiResult::whereHas('upload', function ($q) use ($upload) {
+            $q->where('measurement_id', $upload->measurement_id)
+                ->where('quarter', $upload->quarter)
+                ->where('year', $upload->year);
+        })
+            ->where('evidence_valid', true)
+            ->sum('realisasi');
+
         return Realisasi::updateOrCreate(
             [
                 'measurement_id' => $upload->measurement_id,
@@ -159,7 +169,7 @@ class EvidenceService
                 'year' => $upload->year,
             ],
             [
-                'value' => $value,
+                'value' => $totalRealisasi,
                 'source' => 'ai',
             ]
         );

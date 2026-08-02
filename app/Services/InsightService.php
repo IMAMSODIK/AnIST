@@ -80,9 +80,9 @@ class InsightService
                 $measurement->formula
             );
 
-            // Pull the most recent valid evidence analysis + matched
-            // initiative for this period to ground the narrative.
-            [$evidenceAnalysis, $matchedInitiative] = $this->latestEvidenceContext($measurementId, $quarter, $year);
+            // Pull ALL valid evidence analysis + matched initiatives for this
+            // period to ground the narrative with complete context.
+            [$evidenceAnalysis, $matchedInitiative] = $this->allEvidenceContext($measurementId, $quarter, $year);
 
             $context = [
                 'target' => $targetValue,
@@ -188,26 +188,53 @@ class InsightService
     }
 
     /**
-     * Latest validated evidence analysis and matched initiative for the
-     * measurement + period, used to ground the insight narrative.
+     * Combined validated evidence analysis and matched initiatives for the
+     * measurement + period. Instead of only the latest evidence, this gathers
+     * ALL valid evidence so the insight narrative can explain the status of
+     * each application / initiative individually.
      *
-     * @return array{0:string,1:string} [analysis, matchedInitiative]
+     * @return array{0:string, 1:string} [combinedAnalysis, primaryInitiative]
      */
-    protected function latestEvidenceContext(int $measurementId, string $quarter, int $year): array
+    protected function allEvidenceContext(int $measurementId, string $quarter, int $year): array
     {
-        $aiResult = AiResult::whereHas('upload', function ($q) use ($measurementId, $quarter, $year) {
+        $aiResults = AiResult::whereHas('upload', function ($q) use ($measurementId, $quarter, $year) {
             $q->where('measurement_id', $measurementId)
                 ->where('quarter', $quarter)
                 ->where('year', $year);
         })
             ->where('evidence_valid', true)
             ->latest()
-            ->first();
+            ->get();
 
-        return [
-            (string) ($aiResult?->analysis ?? ''),
-            (string) ($aiResult?->matched_initiative ?? ''),
-        ];
+        if ($aiResults->isEmpty()) {
+            return ['', ''];
+        }
+
+        // Build a combined analysis block — each evidence is labelled with
+        // its source file name and matched initiative so Gemini can reason
+        // about every application / initiative separately.
+        $combinedAnalysis = $aiResults->map(function ($r) {
+            $fileName = $r->upload?->file_name ?? 'Unknown';
+            $initiative = $r->matched_initiative ?? 'N/A';
+            $realisasi = $r->realisasi ?? 0;
+            $recommendations = $r->recommendations_array;
+
+            $block = "### Evidence: {$fileName}";
+            $block .= "\n- **Initiative**: {$initiative}";
+            $block .= "\n- **Realisasi dari AI**: {$realisasi}";
+            $block .= "\n- **Analysis**: {$r->analysis}";
+
+            if (!empty($recommendations)) {
+                $block .= "\n- **Recommendations**: " . implode('; ', $recommendations);
+            }
+
+            return $block;
+        })->join("\n\n---\n\n");
+
+        // Use the first (most recent) initiative as the primary label.
+        $primaryInitiative = (string) ($aiResults->first()->matched_initiative ?? '');
+
+        return [$combinedAnalysis, $primaryInitiative];
     }
 
     protected function logAudit(string $action, int $measurementId, array $newValues = []): void
