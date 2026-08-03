@@ -55,7 +55,7 @@
                     <th class="text-left px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Measurement</th>
                     <th class="text-center px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Period</th>
                     <th class="text-center px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Status</th>
-                    <th class="text-center px-6 py-3 font-medium text-slate-600 dark:text-slate-300">AI Result</th>
+                    {{-- <th class="text-center px-6 py-3 font-medium text-slate-600 dark:text-slate-300">AI Result</th> --}}
                     <th class="text-left px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Uploaded</th>
                     <th class="text-right px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Actions</th>
                 </tr>
@@ -91,7 +91,7 @@
                             {{ ucfirst($upload->status) }}
                         </span>
                     </td>
-                    <td class="px-6 py-4 text-center">
+                    {{-- <td class="px-6 py-4 text-center">
                         @if($upload->aiResult)
                             @if($upload->aiResult->evidence_valid)
                             <span class="text-emerald-600 dark:text-emerald-400 text-xs font-medium">Valid ({{ $upload->aiResult->confidence }}%)</span>
@@ -101,7 +101,7 @@
                         @else
                         <span class="text-slate-400 text-xs">-</span>
                         @endif
-                    </td>
+                    </td> --}}
                     <td class="px-6 py-4 text-sm text-slate-500">
                         <p>{{ $upload->user->name ?? 'N/A' }}</p>
                         <p class="text-xs">{{ $upload->created_at->diffForHumans() }}</p>

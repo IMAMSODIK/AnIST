@@ -67,19 +67,19 @@
             AI Analysis Result
         </h3>
 
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div class="bg-{{ $upload->aiResult->evidence_valid ? 'emerald' : 'rose' }}-50 dark:bg-{{ $upload->aiResult->evidence_valid ? 'emerald' : 'rose' }}-900/20 rounded-xl p-4 text-center">
+        <div class="grid grid-cols-2 md:grid-cols-2 gap-4 mb-6">
+            {{-- <div class="bg-{{ $upload->aiResult->evidence_valid ? 'emerald' : 'rose' }}-50 dark:bg-{{ $upload->aiResult->evidence_valid ? 'emerald' : 'rose' }}-900/20 rounded-xl p-4 text-center">
                 <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Evidence Valid</p>
                 <p class="text-lg font-bold {{ $upload->aiResult->evidence_valid ? 'text-emerald-600' : 'text-rose-600' }}">{{ $upload->aiResult->evidence_valid ? 'Yes' : 'No' }}</p>
-            </div>
+            </div> --}}
             <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 text-center">
                 <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Realisasi</p>
                 <p class="text-lg font-bold text-indigo-600 dark:text-indigo-400">{{ $upload->aiResult->realisasi ?? 0 }}</p>
             </div>
-            <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 text-center">
+            {{-- <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 text-center">
                 <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Confidence</p>
                 <p class="text-lg font-bold text-slate-800 dark:text-white">{{ $upload->aiResult->confidence ?? 0 }}%</p>
-            </div>
+            </div> --}}
             <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 text-center">
                 <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Processing Time</p>
                 <p class="text-lg font-bold text-slate-800 dark:text-white">{{ $upload->aiResult->processing_time ?? 0 }}s</p>
