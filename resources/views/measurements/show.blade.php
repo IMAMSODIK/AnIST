@@ -38,10 +38,10 @@
                 <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Unit</p>
                 <p class="text-sm font-semibold text-slate-800 dark:text-white">{{ $measurement->unit ?? 'N/A' }}</p>
             </div>
-            <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4">
+            {{-- <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4">
                 <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Weight</p>
                 <p class="text-sm font-semibold text-slate-800 dark:text-white">{{ $measurement->weight }}%</p>
-            </div>
+            </div> --}}
             <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4">
                 <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Evidence Count</p>
                 <p class="text-sm font-semibold text-slate-800 dark:text-white">{{ $measurement->uploads->count() }}</p>

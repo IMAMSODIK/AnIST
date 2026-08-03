@@ -38,7 +38,7 @@
                         <th class="text-left px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Perspective</th>
                         <th class="text-left px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Objective</th>
                         <th class="text-left px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Measurement</th>
-                        <th class="text-center px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Weight</th>
+                        {{-- <th class="text-center px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Weight</th> --}}
                         <th class="text-center px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Formula</th>
                         <th class="text-center px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Targets</th>
                         <th class="text-center px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Initiatives</th>
@@ -59,7 +59,7 @@
                         </td>
                         <td class="px-6 py-4 text-slate-700 dark:text-slate-300">{{ $measurement->objective }}</td>
                         <td class="px-6 py-4 font-medium text-slate-800 dark:text-white">{{ $measurement->measurement }}</td>
-                        <td class="px-6 py-4 text-center text-slate-600 dark:text-slate-400">{{ $measurement->weight }}%</td>
+                        {{-- <td class="px-6 py-4 text-center text-slate-600 dark:text-slate-400">{{ $measurement->weight }}%</td> --}}
                         <td class="px-6 py-4 text-center text-slate-600 dark:text-slate-400 text-xs">{{ $measurement->formula ?? '-' }}</td>
                         <td class="px-6 py-4 text-center text-slate-600 dark:text-slate-400">{{ $measurement->targets_count }}</td>
                         <td class="px-6 py-4 text-center text-slate-600 dark:text-slate-400">{{ $measurement->initiatives_count }}</td>
