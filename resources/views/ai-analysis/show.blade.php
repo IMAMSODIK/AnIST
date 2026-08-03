@@ -15,7 +15,7 @@
                 <h2 class="text-xl font-bold text-slate-800 dark:text-white">{{ $aiResult->upload->measurement->measurement ?? 'N/A' }}</h2>
                 <p class="text-sm text-slate-500 mt-1">Evidence: {{ $aiResult->upload->file_name ?? 'N/A' }} &middot; {{ $aiResult->upload->quarter ?? '' }} {{ $aiResult->upload->year ?? '' }}</p>
             </div>
-            <div class="flex items-center gap-2">
+            {{-- <div class="flex items-center gap-2">
                 @if($aiResult->evidence_valid)
                 <span class="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-xl text-sm font-medium">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -27,18 +27,18 @@
                     Evidence Invalid
                 </span>
                 @endif
-            </div>
+            </div> --}}
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-4 text-center">
                 <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Realisasi</p>
                 <p class="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{{ $aiResult->realisasi ?? 0 }}</p>
             </div>
-            <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 text-center">
+            {{-- <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 text-center">
                 <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Confidence</p>
                 <p class="text-2xl font-bold text-slate-800 dark:text-white">{{ $aiResult->confidence ?? 0 }}%</p>
-            </div>
+            </div> --}}
             <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 text-center">
                 <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Processing Time</p>
                 <p class="text-2xl font-bold text-slate-800 dark:text-white">{{ $aiResult->processing_time ?? 0 }}s</p>
@@ -56,7 +56,7 @@
     </div>
 
     {{-- Matched Initiative --}}
-    @if($aiResult->matched_initiative)
+    {{-- @if($aiResult->matched_initiative)
     <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
         <h3 class="text-lg font-semibold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
             <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
@@ -67,7 +67,7 @@
             <p class="text-xs text-indigo-500 dark:text-indigo-400 mt-1">Confidence: {{ $aiResult->confidence }}%</p>
         </div>
     </div>
-    @endif
+    @endif --}}
 
     {{-- Analysis --}}
     @if($aiResult->analysis)
