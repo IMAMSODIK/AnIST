@@ -76,12 +76,12 @@
                         <th class="text-left px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Perspective</th>
                         <th class="text-left px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Objective</th>
                         <th class="text-left px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Measurement</th>
-                        <th class="text-center px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Weight</th>
+                        {{-- <th class="text-center px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Weight</th> --}}
                         <th class="text-center px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Unit</th>
                         <th class="text-center px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Target</th>
                         <th class="text-center px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Realisasi</th>
-                        <th class="text-center px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Achievement</th>
-                        <th class="text-center px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Score</th>
+                        {{-- <th class="text-center px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Achievement</th> --}}
+                        {{-- <th class="text-center px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Score</th> --}}
                         <th class="text-center px-6 py-3 font-medium text-slate-600 dark:text-slate-300">Status</th>
                         <th class="text-center px-6 py-3 font-medium text-slate-600 dark:text-slate-300">AI Insight</th>
                     </tr>
@@ -106,12 +106,12 @@
                         <td class="px-6 py-3 text-xs text-slate-500 dark:text-slate-400">{{ $kpi['perspective'] }}</td>
                         <td class="px-6 py-3 text-slate-600 dark:text-slate-300 text-xs">{{ $kpi['objective'] }}</td>
                         <td class="px-6 py-3 font-medium text-slate-800 dark:text-white">{{ $kpi['measurement'] }}</td>
-                        <td class="px-6 py-3 text-center text-slate-600 dark:text-slate-400">{{ $kpi['weight'] }}%</td>
+                        {{-- <td class="px-6 py-3 text-center text-slate-600 dark:text-slate-400">{{ $kpi['weight'] }}%</td> --}}
                         <td class="px-6 py-3 text-center text-slate-500 dark:text-slate-400 text-xs">{{ $kpi['unit'] }}</td>
                         <td class="px-6 py-3 text-center text-slate-600 dark:text-slate-400">{{ number_format($kpi['target'], 2) }}</td>
                         <td class="px-6 py-3 text-center font-medium text-indigo-600 dark:text-indigo-400">{{ number_format($kpi['realisasi'], 2) }}</td>
-                        <td class="px-6 py-3 text-center text-slate-600 dark:text-slate-400">{{ number_format($kpi['achievement'], 1) }}%</td>
-                        <td class="px-6 py-3 text-center font-semibold text-slate-800 dark:text-white">{{ number_format($kpi['score'], 2) }}</td>
+                        {{-- <td class="px-6 py-3 text-center text-slate-600 dark:text-slate-400">{{ number_format($kpi['achievement'], 1) }}%</td> --}}
+                        {{-- <td class="px-6 py-3 text-center font-semibold text-slate-800 dark:text-white">{{ number_format($kpi['score'], 2) }}</td> --}}
                         <td class="px-6 py-3 text-center">
                             <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium
                                 {{ $kpi['status'] === 'Achieved' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : '' }}
@@ -270,7 +270,7 @@
                     @endforelse
                 </tbody>
                 @if($reportData->count() > 0)
-                <tfoot class="bg-slate-50 dark:bg-slate-700/50 font-semibold">
+                {{-- <tfoot class="bg-slate-50 dark:bg-slate-700/50 font-semibold">
                     <tr>
                         <td colspan="3" class="px-6 py-3 text-slate-800 dark:text-white">Total</td>
                         <td class="px-6 py-3 text-center text-slate-800 dark:text-white">{{ number_format($reportData->sum('weight'), 1) }}%</td>
@@ -282,7 +282,7 @@
                         <td class="px-6 py-3"></td>
                         <td class="px-6 py-3"></td>
                     </tr>
-                </tfoot>
+                </tfoot> --}}
                 @endif
             </table>
         </div>
