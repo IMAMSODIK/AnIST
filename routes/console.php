@@ -30,5 +30,14 @@ Schedule::command('queue:work', [
     '--delay' => 10,
     '--memory' => 128,
 ])->everyMinute()
-    ->name('evidence-queue-worker')
-    ->withoutOverlapping(60);
+    ->name('evidence-queue-worker');
+
+Schedule::command('queue:work', [
+    '--queue' => 'default',
+    '--stop-when-empty' => true,
+    '--max-time' => 55,
+    '--tries' => 2,
+    '--delay' => 10,
+    '--memory' => 128,
+])->everyMinute()
+    ->name('default-queue-worker');
