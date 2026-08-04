@@ -22,22 +22,10 @@ Artisan::command('inspire', function () {
  |   * * * * * cd /home/uXXXXXX/kpi_advisor && php artisan schedule:run >> /dev/null 2>&1
  |
  */
-Schedule::command('queue:work', [
-    '--queue' => 'evidence',
-    '--stop-when-empty' => true,
-    '--max-time' => 55,
-    '--tries' => 2,
-    '--delay' => 10,
-    '--memory' => 128,
-])->everyMinute()
+Schedule::exec(escapeshellarg(PHP_BINARY).' '.escapeshellarg(base_path('artisan')).' queue:work --queue=evidence --stop-when-empty --max-time=55 --tries=2 --delay=10 --memory=128')
+    ->everyMinute()
     ->name('evidence-queue-worker');
 
-Schedule::command('queue:work', [
-    '--queue' => 'default',
-    '--stop-when-empty' => true,
-    '--max-time' => 55,
-    '--tries' => 2,
-    '--delay' => 10,
-    '--memory' => 128,
-])->everyMinute()
+Schedule::exec(escapeshellarg(PHP_BINARY).' '.escapeshellarg(base_path('artisan')).' queue:work --queue=default --stop-when-empty --max-time=55 --tries=2 --delay=10 --memory=128')
+    ->everyMinute()
     ->name('default-queue-worker');
