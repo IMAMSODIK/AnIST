@@ -70,6 +70,37 @@ class ResponseValidator
             }
         }
 
+        // Validate applications if present (used by Implementasi Sistem to
+        // de-duplicate the same application across multiple evidence files).
+        if (isset($data['applications'])) {
+            if (!is_array($data['applications'])) {
+                $errors[] = "applications must be an array";
+            } else {
+                foreach ($data['applications'] as $index => $app) {
+                    if (!is_string($app) || trim($app) === '') {
+                        $errors[] = "applications[{$index}] must be a non-empty string";
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Validate go_live_applications if present. This is the SUBSET of
+        // applications whose stage has reached Go Live / production in this
+        // evidence. Only these contribute to the realisasi count.
+        if (isset($data['go_live_applications'])) {
+            if (!is_array($data['go_live_applications'])) {
+                $errors[] = "go_live_applications must be an array";
+            } else {
+                foreach ($data['go_live_applications'] as $index => $app) {
+                    if (!is_string($app) || trim($app) === '') {
+                        $errors[] = "go_live_applications[{$index}] must be a non-empty string";
+                        break;
+                    }
+                }
+            }
+        }
+
         if (!empty($errors)) {
             Log::warning('AI response validation errors', [
                 'errors' => $errors,
@@ -203,6 +234,41 @@ class ResponseValidator
 
         if (is_string($data['recommendations'])) {
             $data['recommendations'] = [$data['recommendations']];
+        }
+
+        // Ensure applications is an array of trimmed, non-empty strings.
+        // Used by Implementasi Sistem measurements so Laravel can count UNIQUE
+        // application names across multiple evidence files for the same period.
+        if (!isset($data['applications'])) {
+            $data['applications'] = [];
+        }
+
+        if (is_string($data['applications'])) {
+            $data['applications'] = [$data['applications']];
+        }
+
+        if (is_array($data['applications'])) {
+            $data['applications'] = array_values(array_filter(
+                array_map(fn ($a) => is_string($a) ? trim($a) : '', $data['applications']),
+                fn ($a) => $a !== '',
+            ));
+        }
+
+        // Normalize go_live_applications the same way. Legacy responses that
+        // do not include this field get an empty array (no go-live contribution).
+        if (!isset($data['go_live_applications'])) {
+            $data['go_live_applications'] = [];
+        }
+
+        if (is_string($data['go_live_applications'])) {
+            $data['go_live_applications'] = [$data['go_live_applications']];
+        }
+
+        if (is_array($data['go_live_applications'])) {
+            $data['go_live_applications'] = array_values(array_filter(
+                array_map(fn ($a) => is_string($a) ? trim($a) : '', $data['go_live_applications']),
+                fn ($a) => $a !== '',
+            ));
         }
 
         // Trim analysis

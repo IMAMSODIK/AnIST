@@ -55,8 +55,36 @@
         </div>
     </div>
 
+    {{-- Applications Identified (used to de-duplicate evidence for the same
+         application across multiple uploads). --}}
+    @php $applications = $aiResult->applications_array ?? []; @endphp
+    @php $goLiveApps = $aiResult->go_live_applications_array ?? []; @endphp
+    @if(count($applications) > 0)
+    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
+            <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            Applications Identified
+        </h3>
+        <div class="flex flex-wrap gap-2">
+            @php $goLiveSet = array_map('strtolower', $goLiveApps); @endphp
+            @foreach($applications as $app)
+                @php $isGoLive = in_array(strtolower($app), $goLiveSet, true); @endphp
+                <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-medium border {{ $isGoLive ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-100 dark:border-emerald-800/50' : 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-100 dark:border-amber-800/50' }}">
+                    {{ $app }}
+                    @if($isGoLive)
+                        <span class="text-xs">[Go Live]</span>
+                    @else
+                        <span class="text-xs">[UAT/Testing]</span>
+                    @endif
+                </span>
+            @endforeach
+        </div>
+        <p class="text-xs text-slate-400 dark:text-slate-500 mt-3">* Hanya aplikasi yang sudah Go Live yang dihitung ke realisasi. UAT/Testing hanya untuk audit trail.</p>
+    </div>
+    @endif
+
     {{-- Matched Initiative --}}
-    {{-- @if($aiResult->matched_initiative)
+    @if($aiResult->matched_initiative)
     <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
         <h3 class="text-lg font-semibold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
             <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
@@ -67,7 +95,7 @@
             <p class="text-xs text-indigo-500 dark:text-indigo-400 mt-1">Confidence: {{ $aiResult->confidence }}%</p>
         </div>
     </div>
-    @endif --}}
+    @endif}
 
     {{-- Analysis --}}
     @if($aiResult->analysis)

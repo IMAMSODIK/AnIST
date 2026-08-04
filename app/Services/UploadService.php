@@ -6,11 +6,17 @@ use App\Models\AuditTrail;
 use App\Models\Upload;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class UploadService
 {
+    public function __construct(
+        protected EvidenceService $evidenceService,
+        protected KPIService $kpiService,
+    ) {}
+
     protected array $allowedMimeTypes = [
         'application/pdf',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -84,6 +90,10 @@ class UploadService
 
     public function deleteUpload(Upload $upload): bool
     {
+        $measurementId = $upload->measurement_id;
+        $quarter = $upload->quarter;
+        $year = $upload->year;
+
         if (Storage::disk('local')->exists($upload->file_path)) {
             Storage::disk('local')->delete($upload->file_path);
         }
@@ -102,7 +112,29 @@ class UploadService
             'user_agent' => request()->userAgent(),
         ]);
 
-        return $upload->delete();
+        $deleted = $upload->delete();
+
+        // After removing the evidence, the previously aggregated realisasi is
+        // now stale (it still includes the deleted evidence's contribution).
+        // Recompute realisasi and downstream KPI score + insight so the
+        // dashboard always reflects the remaining evidence.
+        try {
+            $this->evidenceService->recalculateRealisasi($measurementId, $quarter, $year);
+
+            $this->kpiService->calculateScore($measurementId, $quarter, $year);
+
+            // Refresh the narrative insight (non-blocking on failure).
+            $this->evidenceService->refreshInsight($measurementId, $quarter, $year);
+        } catch (\Throwable $e) {
+            Log::warning('Post-delete realisasi/KPI recalculation failed (suppressed)', [
+                'measurement_id' => $measurementId,
+                'quarter' => $quarter,
+                'year' => $year,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $deleted;
     }
 
     public function getAllowedMimeTypes(): array

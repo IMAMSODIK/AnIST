@@ -14,7 +14,7 @@ class PromptManager
     {
         $basePrompt = $this->getBasePrompt($measurement);
         $initiativeList = $this->formatInitiatives($initiatives);
-        $outputFormat = $this->getOutputFormat();
+        $outputFormat = $this->getOutputFormat($measurement);
 
         return <<<PROMPT
 {$basePrompt}
@@ -85,16 +85,48 @@ PROMPT;
         // contextually accurate narrative instead of generic filler.
         $formulaHint = $this->getFormulaInterpretationHint($measurement->formula, $target, $realisasi);
 
-        return <<<PROMPT
-# KPI Achievement Reasoning
+        // Measurement-type-specific recommendation domain hints. These give
+        // Gemini concrete categories of action items to draw from instead of
+        // falling back to generic platitudes ("monitoring", "improve", "review").
+        $recommendationDomain = $this->getRecommendationDomainHint($measurement);
 
-You are an executive KPI advisor. Laravel has ALREADY calculated every metric below using the company formula. Your ONLY job is to explain, in clear business language, the REASONS the KPI is achieved or not achieved, and give actionable recommendations.
+        // KPI lifecycle stage. Tells Gemini whether to recommend SUSTAIN
+        // actions (post-achievement) or CORRECTIVE actions (gap closing),
+        // eliminating the vague "improve" advice that doesn't fit either.
+        $lifecycleStage = $achievement >= 100
+            ? 'SUSTAIN (post-achievement) — focus on stability, adoption, monitoring, continuous improvement'
+            : 'CLOSE THE GAP (corrective) — focus on unblocking bottleneck, accelerating remaining milestones, mitigation';
+
+        $isFullyAchieved = $achievement >= 100;
+
+        return <<<PROMPT
+# KPI Achievement Reasoning — Insight, NOT Summary
+
+You are a senior executive KPI advisor to the CIO/CEO. Laravel has ALREADY
+calculated every metric below using the company formula. Your job is NOT to
+summarize the evidence — a clerical assistant could do that. Your job is to
+produce executive-grade INSIGHT: explain the underlying business drivers,
+assess operational implications, and prescribe concrete next actions.
 
 ## Hard Rules (do NOT break these)
-- Do NOT recalculate, recompute, or question the achievement percentage, score, target, realisasi, or status. They are final and provided by Laravel.
+- Do NOT recalculate, recompute, or question the achievement, score, target, realisasi, or status. They are final.
 - Do NOT invent numbers. Use only the figures given below.
-- Focus on the WHY (narrative explanation), not the math.
-- Write in Indonesian (Bahasa Indonesia), professional and executive-friendly tone.
+- Focus on the WHY (business causation), not the WHAT (evidence summary).
+- Write in Indonesian (Bahasa Indonesia), professional, executive-friendly, analytical tone.
+- This is an INSIGHT call, not an EVIDENCE-SUMMARY call. The user has read the evidence;
+  they want your interpretation of what it MEANS, not a recap of what it SAYS.
+
+## The Difference Between Summary and Insight (CRITICAL)
+- ❌ SUMMARY (FORBIDDEN): "KPI tercapai karena UAT selesai dan Go-Live berhasil."
+  This merely repeats facts already visible in the evidence.
+- ✅ INSIGHT (REQUIRED): "Target KPI tercapai karena seluruh milestone kritikal
+  (UAT dan Go-Live) selesai sesuai jadwal tanpa outstanding issue. Hal ini
+  menunjukkan kesiapan implementasi telah memenuhi target operasional. Fokus
+  berikutnya perlu diarahkan pada stabilitas layanan dan adopsi pengguna untuk
+  memastikan manfaat bisnis tetap berkelanjutan."
+- Insight answers: WHY did it happen, WHAT does it imply for the business,
+  WHAT is the risk/opportunity, WHAT must leadership do next. Summary only
+  restates WHAT happened.
 
 ## Measurement
 - **Measurement**: {$measurement->measurement}
@@ -111,42 +143,223 @@ You are an executive KPI advisor. Laravel has ALREADY calculated every metric be
 - **Status**: {$status}
 - **Gap**: {$gap} {$measurement->unit} ({$gapDirection})
 - {$initiativeBlock}
+- **Lifecycle stage for recommendations**: {$lifecycleStage}
 
 {$formulaHint}
 
 {$evidenceBlock}
 
-## Your Tasks
-1. **achieved_reason**: Explain WHY this KPI reached (or is on track to reach) its target. Reference concrete factors visible in the evidence analysis (e.g. system go-live, delivered modules, completed audits, transaction volumes). If the KPI is fully achieved, explain the success drivers. If it is NOT achieved, you may still note partial progress factors — but keep this field focused on what went right.
-2. **not_achieved_reason**: Explain WHY this KPI has NOT yet reached its target (the gap). Be specific about what is missing, delayed, incomplete, or blocking. If the KPI IS fully achieved (status = Achieved), set this to an empty string "".
-3. **recommendations**: Provide 2-4 actionable, specific recommendations to either sustain success (if achieved) or close the gap (if not achieved). Each recommendation must be a concrete next step, not a generic platitude.
+{$recommendationDomain}
 
-## Specificity Requirements (IMPORTANT)
-- Analyze EACH evidence separately. If there are multiple evidence files, explain the status of EACH application/initiative individually.
-- For "Implementasi Sistem" measurements: identify which specific application each evidence refers to and at what stage it is (e.g. UAT, go-live, development, testing).
-- If an application is still in UAT → explicitly state: "Aplikasi [nama aplikasi] masih dalam tahap UAT"
-- If an application has gone live → explicitly state: "Aplikasi [nama aplikasi] sudah go-live"
-- If there is a gap to target → identify exactly WHICH application(s) still need evidence and WHAT type of evidence is missing (e.g. "Perlu dokumen Berita Acara UAT untuk Aplikasi X")
-- Do NOT write generic statements. Always reference specific application names, specific document types, and specific stages.
-- Recommendations must be specific per application/initiative, not generic advice.
+## Your Tasks
+
+### 1. achieved_reason (INSIGHT, not summary)
+Explain WHY this KPI reached (or is on track to reach) its target at the
+BUSINESS and OPERATIONAL level — not just "evidence X was uploaded".
+
+Structure your reasoning:
+- **Driver**: name the concrete factor visible in the evidence that drove
+  success (e.g. "seluruh milestone kritikal UAT dan Go-Live selesai sesuai
+  jadwal tanpa outstanding issue", "transaksi tuntas tepat waktu karena
+  stabilisasi gateway berhasil").
+- **Implication**: state what this MEANS for the business / operation
+  (e.g. "menunjukkan kesiapan implementasi telah memenuhi target operasional").
+- **Risk/opportunity**: surface the NEXT risk or opportunity the executive
+  should now attend to (e.g. "fokus berikutnya adalah stabilitas layanan dan
+  adopsi pengguna agar manfaat bisnis berkelanjutan").
+
+Do NOT just list which evidence documents exist. Do NOT repeat the file names
+or stage labels verbatim — the user has already seen them. Interpret them.
+
+If the KPI is NOT achieved, still surface any partial progress factors here,
+but keep this field focused on what went RIGHT ( however small ).
+
+### 2. not_achieved_reason (only when there is a gap)
+Explain WHY this KPI has NOT yet reached its target. Be specific about what
+is missing, delayed, incomplete, or blocking. Cite the SPECIFIC application
+name / document / milestone that is absent.
+
+If the KPI IS fully achieved, set this to an empty string "".
+
+### 3. recommendations (SPECIFIC & ACTIONABLE, NOT generic)
+Provide 3-6 recommendations. Each MUST be a concrete next step, not a platitude.
+- ❌ FORBIDDEN: "Lakukan monitoring performa", "Tingkatkan kualitas", "Perbaiki sistem".
+- ✅ REQUIRED: Specific action + scope + concrete metric / timeframe / owner
+  when applicable.
+
+Examples of SPECIFIC recommendations (use as inspiration, tailor to the
+actual KPI and evidence):
+- "Tingkatkan monitoring response time selama 30 hari pasca Go-Live untuk
+  memastikan P95 < 2 detik."
+- "Lakukan evaluasi bug berdasarkan tiket Helpdesk selama 60 hari pertama,
+  target resolution rate ≥ 90%."
+- "Review SLA dengan vendor setelah implementasi, fokus pada uptime 99.9%."
+- "Ukur tingkat penggunaan modul ESS oleh pengguna dengan target adoption
+  rate ≥ 80% pada Q berikutnya."
+- "Lakukan user adoption measurement dengan survey NPS bulanan."
+- "Identifikasi aplikasi [nama] yang masih dalam UAT — targetkan Go-Live
+  sebelum akhir Q ini untuk menutup gap sebanyak [X] unit."
+
+Use the recommendation domain hint above as a source of categories. Pick
+3-6 concrete items that ACTUALLY fit the situation. Skip categories that
+are not applicable.
+
+## Quality Bar (self-check before emitting)
+Before you write the JSON, re-read your draft and verify:
+- [ ] The `achieved_reason` explains WHY at business level, not just lists
+      what evidence was uploaded. If it only restates evidence → rewrite it.
+- [ ] Each recommendation names a specific action, not a verb + vague noun.
+- [ ] No recommendation is a generic platitude ("monitoring", "improve",
+      "review", "optimize") without a concrete scope/metric/timeframe.
+- [ ] Application-specific items reference the actual application name from
+      the evidence (not "aplikasi X").
+- [ ] Lifecycle stage is respected: sustain actions for achieved KPIs,
+      corrective actions for unachieved ones.
 
 ## Required Output Format
 Respond with ONLY a valid JSON object in exactly this format:
 
 ```json
 {
-    "achieved_reason": "Penjelasan mengapa KPI tercapai / on track...",
-    "not_achieved_reason": "Penjelasan mengapa KPI belum tercapai (kosongkan jika sudah Achieved)",
+    "achieved_reason": "Analisis mendalam mengapa KPI tercapai (driver + implication + risk/opportunity)...",
+    "not_achieved_reason": "Analisis mengapa KPI belum tercapai; kosongkan jika status Achieved",
     "recommendations": [
-        "Rekomendasi pertama yang konkret",
-        "Rekomendasi kedua",
-        "Rekomendasi ketiga"
+        "Rekomendasi spesifik #1 dengan scope + metric/timeframe",
+        "Rekomendasi spesifik #2 dengan scope + metric/timeframe",
+        "Rekomendasi spesifik #3 dengan scope + metric/timeframe"
     ]
 }
 ```
 
-IMPORTANT: Return ONLY the JSON object, no additional text.
+IMPORTANT: Return ONLY the JSON object, no additional text, no preface.
 PROMPT;
+    }
+
+    /**
+     * Measurement-type-specific hint that tells Gemini what CATEGORIES of
+     * concrete actions are typically relevant for this kind of KPI. This is
+     * the single most effective lever to push recommendations away from
+     * generic platitudes toward actionable executive advice.
+     */
+    protected function getRecommendationDomainHint(Measurement $measurement): string
+    {
+        $name = strtolower($measurement->measurement ?? '');
+
+        // Implementasi Sistem / System Implementation
+        if (str_contains($name, 'implementasi sistem') || str_contains($name, 'system implementation') || str_contains($name, 'aplikasi')) {
+            return <<<'HINT'
+## Recommendation Domain Hint — System Implementation
+For Implementasi Sistem KPIs, recommendations should draw from these concrete
+categories (pick those that fit the situation, skip those that don't):
+
+**Post Go-Live Stabilization (if any application is Go Live):**
+- Monitoring response time / latency selama 30 hari pasca Go-Live (target P95 < X detik)
+- Evaluasi bug dari tiket Helpdesk selama 60 hari pertama (target resolution rate ≥ 90%)
+- Review SLA vendor / internal setelah implementasi (fokus uptime ≥ 99.9%)
+- Chaos / load testing untuk mengukur batas kapasitas sebelum traffic puncak
+- Patch dan security hardening pada minggu pertama produksi
+
+**User Adoption (if application is Go Live but adoption not yet measured):**
+- Ukur tingkat penggunaan modul oleh end user (target adoption rate ≥ 80% dalam Q berikut)
+- User adoption survey dengan NPS bulanan
+- Training / change-management plan untuk user yang belum adopt
+- Identifikasi power user dan champion untuk socialize fitur baru
+
+**Gap Closure (if some applications are still UAT / not yet Go Live):**
+- Tentukan target tanggal Go-Live per aplikasi yang masih UAT
+- Identifikasi open issues dari UAT dan assign owner + due date
+- Planned Go-Live per aplikasi untuk menutup gap [X unit] di Q berikutnya
+- Risk register untuk blocker UAT masing-masing aplikasi
+
+**Governance & Continuous Improvement:**
+- Post-implementation review (PIR) 90 hari pasca Go-Live
+- Dokumentasi lesson learned untuk proyek implementasi berikutnya
+- Update knowledge base / runbook operasional
+HINT;
+        }
+
+        // Cybersecurity Incident
+        if (str_contains($name, 'incident')) {
+            return <<<'HINT'
+## Recommendation Domain Hint — Cybersecurity Incident Count
+For incident-count KPIs (lower is better, zero-tolerance):
+
+**Incident Response & Forensics:**
+- Post-incident review untuk setiap incident yang berhasil menembus (RCA dalam 7 hari)
+- Threat hunting proaktif berdasarkan TTPs dari incident yang terjadi
+- Patch prioritas untuk vektor serangan yang berhasil menembus (SLA 72 jam)
+
+**Detection Capability:**
+- Tuning rule SIEM / IDS untuk mengurangi false negative (target detection rate ≥ 95%)
+- Deployment EDR pada endpoint yang belum tercover (target coverage 100%)
+- Integrasi threat intelligence feed untuk meningkatkan detection
+
+**Prevention:**
+- Review firewall policy / WAF rule, fokus pada action "allowed" yang seharusnya "blocked"
+- Hardening konfigurasi server exposure (close port yang tidak perlu)
+- Phishing awareness training (target completion ≥ 95% karyawan)
+
+**Governance:**
+- Update IR playbook berdasarkan incident type yang dominan
+- SLA review: Mean Time To Detect (MTTD) < 30 menit, Mean Time To Respond (MTTR) < 4 jam
+HINT;
+        }
+
+        // Cybersecurity general
+        if (str_contains($name, 'cybersecurity') || str_contains($name, 'cyber security') || str_contains($name, 'keamanan')) {
+            return <<<'HINT'
+## Recommendation Domain Hint — Cybersecurity Compliance
+**Compliance:**
+- Gap analysis against ISO 27001 / regulasi yang relevan (target close 100% major NC)
+- Remediation plan untuk setiap non-conformance, owner + due date
+- Internal audit follow-up untuk verify effective closure
+
+**Control Effectiveness:**
+- Control effectiveness review tiap kontrol (test design + operating effectiveness)
+- Remediation plan untuk control yang gap
+- Periodic vulnerability scan (monthly) — target critical vuln tuntas ≤ 30 hari
+HINT;
+        }
+
+        // Payment
+        if (str_contains($name, 'payment') || str_contains($name, 'pembayaran')) {
+            return <<<'HINT'
+## Recommendation Domain Hint — Payment System
+**Reliability:**
+- Monitoring success rate gateway tiap jam (target ≥ 99.5%)
+- Failover test untuk payment gateway tiap kuartal
+- Reconcile settlement harian (target variance ≤ 0.01%)
+
+**Adoption / Volume:**
+- Promosi channel digital untuk meningkatkan transaction volume target [X%]
+- Incentive program untuk merchant sign-up (target net new [X] merchant / Q)
+HINT;
+        }
+
+        // Investment
+        if (str_contains($name, 'investment') || str_contains($name, 'investasi')) {
+            return <<<'HINT'
+## Recommendation Domain Hint — IT Investment
+**Utilization:**
+- Review underutilized budget line pada Q berikutnya (target utilization ≥ 90%)
+- Capex vs Opex rebalancing untuk tax efficiency
+- ROI tracking tiap proyek investasi besar (> Rp X M)
+
+**Pipeline:**
+- Pipeline investasi Q berikutnya dengan target allocation [X%]
+HINT;
+        }
+
+        // Default
+        return <<<'HINT'
+## Recommendation Domain Hint — Generic
+Pick concrete actions from these categories that ACTUALLY fit the KPI:
+- Stabilization / monitoring (with concrete metric + timeframe)
+- Adoption / utilization (with target %)
+- Gap closure (with owner + due date + target delta)
+- Governance / review (with cadence: weekly / monthly / quarterly)
+- Capability building (with target coverage)
+HINT;
     }
 
     /**
@@ -209,6 +422,58 @@ Focus on:
 - User acceptance testing (UAT) results
 - System functionality and features implemented
 - Number of modules/features delivered vs planned
+
+## CRITICAL: Application Identification + Stage
+This KPI counts the number of UNIQUE applications/systems that have reached
+**Go Live / production deployment** within the period.
+
+Each evidence file documents one or more applications at a specific stage:
+  - UAT (User Acceptance Testing) — NOT yet go live
+  - Go Live / Production — already deployed to production
+  - Development / Testing — NOT yet go live
+
+You MUST return TWO arrays:
+
+1. `applications` — every distinct application/system identified in this
+   evidence (regardless of stage). Used for display and audit trail.
+2. `go_live_applications` — the SUBSET of `applications` whose stage in THIS
+   evidence is **Go Live / Production deployment**. ONLY these contribute to
+   the realisasi count.
+
+### Stage detection rules
+- Evidence containing a "Berita Acara Go Live", "Go Live", "Production
+  Deployment", "deployed to production", or similar wording → stage = go live
+  → put the application in BOTH `applications` AND `go_live_applications`.
+- Evidence that is only UAT sign-off, test scripts, test results, development
+  status, or screenshots of testing → stage = UAT/testing → put the application
+  in `applications` ONLY. Do NOT put it in `go_live_applications`.
+- When in doubt, do NOT add to `go_live_applications` (prefer under-counting
+  over over-counting).
+
+### Naming rules
+- Use the CANONICAL product/application name as written in the document
+  (e.g. "Klaim Kacamata", NOT "UAT Klaim Kacamata" or "Berita Acara Klaim Kacamata").
+- The document title or filename often contains stage words (UAT, Berita Acara,
+  Go Live, Test Script) — those are stages, NOT part of the application name.
+- ALWAYS prefer the SHORTEST, most distinctive form of the application name.
+  Return "Klaim Kacamata" rather than "Sistem Layanan Reimburse Kesehatan
+  (Modul Klaim Kacamata)" when both refer to the same application — the
+  canonical short name is what gets de-duplicated across evidence files.
+- Do NOT include channel/wrapper words in the canonical name (e.g. "ESS",
+  "aplikasi", "sistem", "layanan", "modul", "reimburse", "kesehatan" should
+  not be the leading part of the name if a more specific product name exists
+  inside the document).
+- Two evidence files for the SAME application (even if descriptions differ
+  slightly) MUST return the SAME canonical name so Laravel de-duplicates them
+  into one application.
+- If multiple distinct applications are covered in one document, list each once.
+- If no specific application name is identifiable, return empty arrays for both.
+
+### realisasi value
+- `realisasi` MUST equal the number of entries in `go_live_applications`
+  (i.e. count of applications that reached Go Live in THIS evidence).
+- A UAT-only evidence therefore has `realisasi: 0` and `go_live_applications: []`,
+  even though `applications` may list the tested application(s).
 PROMPT;
     }
 
@@ -358,10 +623,63 @@ PROMPT;
     }
 
     /**
-     * Get expected output format
+     * Get expected output format.
+     *
+     * For Implementasi Sistem measurements, the `applications` field is required
+     * so Laravel can count UNIQUE applications across multiple evidence files.
      */
-    protected function getOutputFormat(): string
+    protected function getOutputFormat(?Measurement $measurement = null): string
     {
+        $isImplementasiSistem = $measurement
+            && (
+                str_contains(strtolower($measurement->measurement), 'implementasi sistem')
+                || str_contains(strtolower($measurement->measurement), 'system implementation')
+            );
+
+        if ($isImplementasiSistem) {
+            return <<<'PROMPT'
+## Required Output Format
+You MUST respond with a valid JSON object in exactly this format:
+
+```json
+{
+    "measurement": "Name of the measurement being analyzed",
+    "matched_initiative": {
+        "name": "Name of the matched initiative from the list",
+        "confidence": 95
+    },
+    "evidence_valid": true,
+    "realisasi": 1,
+    "applications": [
+        "Canonical application name #1",
+        "Canonical application name #2"
+    ],
+    "go_live_applications": [
+        "Canonical application name #1"
+    ],
+    "analysis": "Detailed analysis of the evidence...",
+    "recommendations": [
+        "First actionable recommendation",
+        "Second actionable recommendation",
+        "Third actionable recommendation"
+    ]
+}
+```
+
+IMPORTANT NOTES:
+- `applications` is REQUIRED — list every distinct application/system identified
+  in this evidence using its canonical short name.
+- `go_live_applications` is REQUIRED — list only the applications whose stage in
+  THIS evidence is Go Live / production deployment. It must be a SUBSET of
+  `applications`. UAT-only / development / testing evidence must use `[]`.
+- `realisasi` MUST equal `count(go_live_applications)` (so a UAT-only evidence
+  has realisasi = 0, not 1).
+- If no application can be identified, return `"applications": []`,
+  `"go_live_applications": []`, and `realisasi: 0`.
+- Return ONLY the JSON object, no additional text.
+PROMPT;
+        }
+
         return <<<'PROMPT'
 ## Required Output Format
 You MUST respond with a valid JSON object in exactly this format:
@@ -375,6 +693,7 @@ You MUST respond with a valid JSON object in exactly this format:
     },
     "evidence_valid": true,
     "realisasi": 1,
+    "applications": [],
     "analysis": "Detailed analysis of the evidence...",
     "recommendations": [
         "First actionable recommendation",

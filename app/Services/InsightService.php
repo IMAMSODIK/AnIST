@@ -218,10 +218,22 @@ class InsightService
             $initiative = $r->matched_initiative ?? 'N/A';
             $realisasi = $r->realisasi ?? 0;
             $recommendations = $r->recommendations_array;
+            $applications = $r->applications_array;
+            $goLiveApps = $r->go_live_applications_array;
 
             $block = "### Evidence: {$fileName}";
             $block .= "\n- **Initiative**: {$initiative}";
             $block .= "\n- **Realisasi dari AI**: {$realisasi}";
+
+            if (!empty($applications)) {
+                $goLiveSet = array_map('strtolower', $goLiveApps);
+                $labelled = array_map(function ($app) use ($goLiveSet) {
+                    $isGoLive = in_array(strtolower($app), $goLiveSet, true);
+                    return $app . ($isGoLive ? ' [Go Live]' : ' [UAT/Testing]');
+                }, $applications);
+                $block .= "\n- **Applications identified**: " . implode(', ', $labelled);
+            }
+
             $block .= "\n- **Analysis**: {$r->analysis}";
 
             if (!empty($recommendations)) {

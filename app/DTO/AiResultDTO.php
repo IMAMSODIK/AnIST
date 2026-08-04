@@ -14,6 +14,8 @@ class AiResultDTO
         public readonly ?array $rawJson,
         public readonly float $processingTime,
         public readonly ?string $errorMessage = null,
+        public readonly array $applications = [],
+        public readonly array $goLiveApplications = [],
     ) {}
 
     public static function fromAiResponse(array $data, array $response): self
@@ -27,6 +29,8 @@ class AiResultDTO
             recommendations: $data['recommendations'] ?? [],
             rawJson: $response['raw_response'] ?? null,
             processingTime: (float) ($response['processing_time'] ?? 0),
+            applications: $data['applications'] ?? [],
+            goLiveApplications: $data['go_live_applications'] ?? [],
         );
     }
 
@@ -46,6 +50,8 @@ class AiResultDTO
             rawJson: $normalizedRaw,
             processingTime: $processingTime,
             errorMessage: $error,
+            applications: [],
+            goLiveApplications: [],
         );
     }
 
@@ -56,6 +62,8 @@ class AiResultDTO
             'confidence' => $this->confidence,
             'evidence_valid' => $this->evidenceValid,
             'realisasi' => $this->realisasi,
+            'applications' => $this->applications,
+            'go_live_applications' => $this->goLiveApplications,
             'analysis' => $this->analysis,
             'recommendation' => json_encode($this->recommendations),
             'raw_json' => $this->rawJson,
