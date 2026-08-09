@@ -13,6 +13,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\StrategicAdvisorController;
 use App\Http\Controllers\TargetController;
 use App\Http\Controllers\UploadController;
 use Illuminate\Support\Facades\Route;
@@ -67,6 +68,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/ai-analysis', [AiAnalysisController::class, 'index'])->name('ai-analysis.index');
     Route::get('/ai-analysis/{aiResult}', [AiAnalysisController::class, 'show'])->name('ai-analysis.show');
 
+    // Strategic Advisor (upload PDF → grounded AI recommendations)
+    Route::get('/strategic-advisor', [StrategicAdvisorController::class, 'index'])->name('strategic-advisor.index');
+    Route::post('/strategic-advisor', [StrategicAdvisorController::class, 'store'])->name('strategic-advisor.store');
+    Route::post('/strategic-advisor/upload-ajax', [StrategicAdvisorController::class, 'uploadAjax'])->name('strategic-advisor.upload-ajax');
+    Route::get('/strategic-advisor/history', [StrategicAdvisorController::class, 'history'])->name('strategic-advisor.history');
+    Route::get('/strategic-advisor/{strategicRecommendation}', [StrategicAdvisorController::class, 'show'])->name('strategic-advisor.show');
+    Route::delete('/strategic-advisor/{strategicRecommendation}', [StrategicAdvisorController::class, 'destroy'])->name('strategic-advisor.destroy');
+
     // Reports
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::post('/reports/insight-regenerate', [ReportController::class, 'regenerate'])->name('reports.insight-regenerate');
@@ -80,6 +89,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/settings/profile', [SettingsController::class, 'updateProfile'])->name('settings.profile');
     Route::post('/settings/password', [SettingsController::class, 'updatePassword'])->name('settings.password');
     Route::post('/settings/gemini-key', [SettingsController::class, 'updateGeminiKey'])->name('settings.gemini-key');
+    Route::post('/settings/gemini-key/test', [SettingsController::class, 'testGeminiKey'])->name('settings.gemini-key.test');
+    Route::delete('/settings/gemini-key', [SettingsController::class, 'resetGeminiKey'])->name('settings.gemini-key.reset');
     Route::get('/settings/system-info', [SettingsController::class, 'systemInfo'])->name('settings.system-info');
 
     // API Endpoints (JSON)

@@ -83,6 +83,151 @@
     </div>
     @endif
 
+    {{-- Investment Items (Capex Realization) --}}
+    @php $investmentItems = $aiResult->investment_items_array ?? []; @endphp
+    @if(count($investmentItems) > 0)
+    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
+            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/></svg>
+            Investment Items (Capex)
+        </h3>
+        <div class="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-700">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 dark:bg-slate-700/50">
+                    <tr>
+                        <th class="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Item / FA</th>
+                        <th class="text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Budget</th>
+                        <th class="text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Realized</th>
+                        <th class="text-center px-4 py-3 font-medium text-slate-600 dark:text-slate-300">%</th>
+                        <th class="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Stage</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                    @php
+                        $fmt = function ($n) { return is_numeric($n) ? 'Rp ' . number_format((float) $n, 0, ',', '.') : '-'; };
+                        $pctColor = function ($p) {
+                            if ($p >= 80) return 'bg-emerald-500';
+                            if ($p >= 50) return 'bg-amber-500';
+                            return 'bg-rose-500';
+                        };
+                    @endphp
+                    @foreach($investmentItems as $item)
+                        @php $pct = (float) ($item['percentage'] ?? 0); @endphp
+                        <tr>
+                            <td class="px-4 py-3 font-medium text-slate-800 dark:text-white">{{ $item['name'] ?? '-' }}</td>
+                            <td class="px-4 py-3 text-right text-slate-600 dark:text-slate-300">{{ $fmt($item['budget'] ?? 0) }}</td>
+                            <td class="px-4 py-3 text-right text-slate-600 dark:text-slate-300">{{ $fmt($item['realized'] ?? 0) }}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center justify-center gap-2">
+                                    <div class="w-16 h-1.5 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
+                                        <div class="h-full rounded-full {{ $pctColor($pct) }}" style="width: {{ min($pct, 100) }}%"></div>
+                                    </div>
+                                    <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">{{ $pct }}%</span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">{{ $item['status'] ?? '-' }}</span>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        <p class="text-xs text-slate-400 dark:text-slate-500 mt-3">* Realisasi keseluruhan dihitung Laravel sebagai sum(realized)/sum(budget) x 100 dari seluruh item unik.</p>
+    </div>
+    @endif
+
+    {{-- SLA Targets (Availability) --}}
+    @php $slaTargets = $aiResult->sla_targets_array ?? []; @endphp
+    @if(count($slaTargets) > 0)
+    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
+            <svg class="w-5 h-5 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.657-1.343 3-3 3s-3-1.343-3-3 1.343-3 3-3 3 1.343 3 3zm12-3c0 1.657-1.343 3-3 3s-3-1.343-3-3 1.343-3 3-3 3 1.343 3 3z"/></svg>
+            SLA Targets (Availability)
+        </h3>
+        <div class="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-700">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 dark:bg-slate-700/50">
+                    <tr>
+                        <th class="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Target</th>
+                        <th class="text-center px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Uptime</th>
+                        <th class="text-center px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                    @foreach($slaTargets as $target)
+                        @php
+                            $up = (float) ($target['uptime'] ?? 0);
+                            $upColor = $up >= 99 ? 'bg-emerald-500' : ($up >= 92 ? 'bg-amber-500' : 'bg-rose-500');
+                            $status = $up >= 99 ? 'Achieved' : ($up >= 92 ? 'Below SLA' : 'Critical');
+                        @endphp
+                        <tr>
+                            <td class="px-4 py-3 font-medium text-slate-800 dark:text-white">{{ $target['name'] ?? '-' }}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center justify-center gap-2">
+                                    <div class="w-16 h-1.5 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
+                                        <div class="h-full rounded-full {{ $upColor }}" style="width: {{ min($up, 100) }}%"></div>
+                                    </div>
+                                    <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">{{ $up }}%</span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium {{ $up >= 99 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300' : ($up >= 92 ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' : 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300') }}">{{ $status }}</span>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        <p class="text-xs text-slate-400 dark:text-slate-500 mt-3">* Realisasi period = rata-rata uptime semua target.</p>
+    </div>
+    @endif
+
+    {{-- Traceability Items (Project Lifecycle) --}}
+    @php $traceItems = $aiResult->traceability_items_array ?? []; @endphp
+    @if(count($traceItems) > 0)
+    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
+            <svg class="w-5 h-5 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+            Project Lifecycle (Traceability)
+        </h3>
+        <div class="space-y-3">
+            @php
+                $stageColor = [
+                    'Kajian'       => 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
+                    'TOR'          => 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+                    'SPK'          => 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
+                    'Implementasi' => 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+                    'BAST'         => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+                    // 3-stage EA Project Management lifecycle (OMTI 2026 #7)
+                    'Perencanaan'  => 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+                    'Development'  => 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
+                ];
+            @endphp
+            @foreach($traceItems as $item)
+                @php
+                    $stage = $item['stage'] ?? '';
+                    $pct = (float) ($item['achievement_pct'] ?? 0);
+                    $badge = $stageColor[$stage] ?? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300';
+                @endphp
+                <div class="p-4 bg-slate-50 dark:bg-slate-700/30 rounded-xl">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-sm font-medium text-slate-800 dark:text-white">{{ $item['name'] ?? '-' }}</p>
+                        <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium {{ $badge }}">{{ $stage }}</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="flex-1 h-1.5 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
+                            <div class="h-full rounded-full bg-violet-500" style="width: {{ min($pct, 100) }}%"></div>
+                        </div>
+                        <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">{{ $pct }}%</span>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+        <p class="text-xs text-slate-400 dark:text-slate-500 mt-3">* Stage mapping: 5-stage Traceability — Kajian=20, TOR=40, SPK=60, Implementasi=80, BAST=100. 3-stage EA (OMTI 2026 #7) — Perencanaan=25, Development=80, Implementasi(BAST)=100. Realisasi period = rata-rata achievement_pct per proyek unik.</p>
+    </div>
+    @endif
+
     {{-- Matched Initiative --}}
     @if($aiResult->matched_initiative)
     <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
@@ -95,7 +240,7 @@
             <p class="text-xs text-indigo-500 dark:text-indigo-400 mt-1">Confidence: {{ $aiResult->confidence }}%</p>
         </div>
     </div>
-    @endif}
+    @endif
 
     {{-- Analysis --}}
     @if($aiResult->analysis)

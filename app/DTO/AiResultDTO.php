@@ -16,6 +16,9 @@ class AiResultDTO
         public readonly ?string $errorMessage = null,
         public readonly array $applications = [],
         public readonly array $goLiveApplications = [],
+        public readonly array $slaTargets = [],
+        public readonly array $investmentItems = [],
+        public readonly array $traceabilityItems = [],
     ) {}
 
     public static function fromAiResponse(array $data, array $response): self
@@ -31,6 +34,9 @@ class AiResultDTO
             processingTime: (float) ($response['processing_time'] ?? 0),
             applications: $data['applications'] ?? [],
             goLiveApplications: $data['go_live_applications'] ?? [],
+            slaTargets: $data['sla_targets'] ?? [],
+            investmentItems: $data['investment_items'] ?? [],
+            traceabilityItems: $data['traceability_items'] ?? [],
         );
     }
 
@@ -52,6 +58,9 @@ class AiResultDTO
             errorMessage: $error,
             applications: [],
             goLiveApplications: [],
+            slaTargets: [],
+            investmentItems: [],
+            traceabilityItems: [],
         );
     }
 
@@ -64,6 +73,9 @@ class AiResultDTO
             'realisasi' => $this->realisasi,
             'applications' => $this->applications,
             'go_live_applications' => $this->goLiveApplications,
+            'sla_targets' => $this->slaTargets,
+            'investment_items' => $this->investmentItems,
+            'traceability_items' => $this->traceabilityItems,
             'analysis' => $this->analysis,
             'recommendation' => json_encode($this->recommendations),
             'raw_json' => $this->rawJson,

@@ -1,0 +1,486 @@
+{
+    "document_type": "MPTI",
+    "company": "PT PERURI (Persero)",
+    "period": "2025-2029",
+    "source_file": "MPTI_PT_PERURI_2025-2029_DUMMY.pdf",
+    "total_pages": 0,
+    "toc": [
+        {
+            "code": "BAB I",
+            "title": "PENDAHULUAN",
+            "page": 9
+        },
+        {
+            "code": "1.1",
+            "title": "Latar Belakang Penyusunan MPTI",
+            "page": 9
+        },
+        {
+            "code": "1.2",
+            "title": "Maksud dan Tujuan MPTI",
+            "page": 11
+        },
+        {
+            "code": "1.3",
+            "title": "Ruang Lingkup & Hubungan dengan RJPP",
+            "page": 12
+        },
+        {
+            "code": "1.4",
+            "title": "Metodologi & Kerangka Penyusunan",
+            "page": 13
+        },
+        {
+            "code": "1.5",
+            "title": "Sistematika Penulisan",
+            "page": 14
+        },
+        {
+            "code": "BAB II",
+            "title": "PROFIL TEKNOLOGI INFORMASI",
+            "page": 16
+        },
+        {
+            "code": "2.1",
+            "title": "Tata Kelola TI Saat Ini",
+            "page": 16
+        },
+        {
+            "code": "2.2",
+            "title": "Inventarisasi Aplikasi",
+            "page": 19
+        },
+        {
+            "code": "2.3",
+            "title": "Inventarisasi Infrastruktur TI",
+            "page": 28
+        },
+        {
+            "code": "2.4",
+            "title": "Sumber Daya Manusia TI",
+            "page": 35
+        },
+        {
+            "code": "2.5",
+            "title": "Anggaran TI Historis",
+            "page": 40
+        },
+        {
+            "code": "2.6",
+            "title": "Layanan TI & Service Level",
+            "page": 44
+        },
+        {
+            "code": "BAB III",
+            "title": "ANALISIS LINGKUNGAN TI",
+            "page": 48
+        },
+        {
+            "code": "3.1",
+            "title": "Analisis Internal TI (SWOT)",
+            "page": 48
+        },
+        {
+            "code": "3.2",
+            "title": "Analisis Tren Teknologi Eksternal",
+            "page": 54
+        },
+        {
+            "code": "3.3",
+            "title": "Benchmarking Internal & Eksternal",
+            "page": 62
+        },
+        {
+            "code": "3.4",
+            "title": "Gap Analysis Tata Kelola (COBIT)",
+            "page": 68
+        },
+        {
+            "code": "3.5",
+            "title": "Penilaian Maturity TI",
+            "page": 74
+        },
+        {
+            "code": "BAB IV",
+            "title": "ARSITEKTUR ENTERPRISE",
+            "page": 78
+        },
+        {
+            "code": "4.1",
+            "title": "Pendekatan TOGAF ADM",
+            "page": 78
+        },
+        {
+            "code": "4.2",
+            "title": "Arsitektur Bisnis",
+            "page": 82
+        },
+        {
+            "code": "4.3",
+            "title": "Arsitektur Data",
+            "page": 90
+        },
+        {
+            "code": "4.4",
+            "title": "Arsitektur Aplikasi",
+            "page": 98
+        },
+        {
+            "code": "4.5",
+            "title": "Arsitektur Teknologi & Infrastruktur",
+            "page": 106
+        },
+        {
+            "code": "4.6",
+            "title": "Arsitektur Keamanan Informasi",
+            "page": 114
+        },
+        {
+            "code": "BAB V",
+            "title": "ARAH DAN STRATEGI TI",
+            "page": 120
+        },
+        {
+            "code": "5.1",
+            "title": "Visi & Misi TI",
+            "page": 120
+        },
+        {
+            "code": "5.2",
+            "title": "Arah Kebijakan_TI (PTI) 5 Tahun",
+            "page": 122
+        },
+        {
+            "code": "5.3",
+            "title": "Sasaran Strategis TI",
+            "page": 126
+        },
+        {
+            "code": "5.4",
+            "title": "Identifikasi Trend Pendukung",
+            "page": 130
+        },
+        {
+            "code": "BAB VI",
+            "title": "ROADMAP DAN INISIATIF PTI",
+            "page": 132
+        },
+        {
+            "code": "6.1",
+            "title": "Klasifikasi Inisiatif PTI",
+            "page": 132
+        },
+        {
+            "code": "6.2",
+            "title": "Prioritisasi Inisiatif",
+            "page": 140
+        },
+        {
+            "code": "6.3",
+            "title": "Roadmap 5 Tahun PTI",
+            "page": 146
+        },
+        {
+            "code": "6.4",
+            "title": "KPI Pendukung Inisiatif TI",
+            "page": 152
+        },
+        {
+            "code": "BAB VII",
+            "title": "INVESTASI TEKNOLOGI INFORMASI",
+            "page": 158
+        },
+        {
+            "code": "7.1",
+            "title": "Estimasi Capex & Opex per Tahun",
+            "page": 158
+        },
+        {
+            "code": "7.2",
+            "title": "Business Case Inisiatif Prioritas",
+            "page": 162
+        },
+        {
+            "code": "7.3",
+            "title": "Total Cost of Ownership (TCO)",
+            "page": 170
+        },
+        {
+            "code": "7.4",
+            "title": "Sumber Pendanaan",
+            "page": 174
+        },
+        {
+            "code": "BAB VIII",
+            "title": "MANAJEMEN RISIKO TI",
+            "page": 176
+        },
+        {
+            "code": "8.1",
+            "title": "Risiko TI Utama & Mitigasi",
+            "page": 176
+        },
+        {
+            "code": "8.2",
+            "title": "Key Risk Indicators (KRI) TI",
+            "page": 182
+        },
+        {
+            "code": "BAB IX",
+            "title": "PENUTUP",
+            "page": 186
+        }
+    ],
+    "sections": {
+        "executive_summary": "Master Plan Teknologi Informasi (MPTI) PT PERURI (Persero) periode 2025-2029\nmerupakan dokumen perencanaan strategis bidang TI lima tahunan yang menyelaraskan\narah TI dengan tujuan perusahaan sebagaimana ditetapkan dalam RJPP 2025-2029.\nDokumen ini menetapkan arah Pengembangan Teknologi Informasi (PTI) yang sejalan\ndengan tujuan bisnis dan mendukung tercapainya Sasaran Strategis perusahaan.\nMPTI 2025-2029 disusun menggunakan kerangka The Open Group Architecture\nFramework (TOGAF) ADM dan diukur kematangannya melalui COBIT 2019. Penyusunan\nmencakup empat pilar utama: (i) Modernisasi Layanan TIinternal, (ii) Konsolidasi Data &\nAplikasi, (iii) Penguatan Tata Kelola dan Keamanan Informasi, (iv) Adopsi Teknologi\nStrategis (AI, IoT, dan Otomasi).\nTotal kebutuhan investasi TI selama periode MPTI diperkirakan Rp 480 miliar, terdiri\ndari Capex Rp 280 miliar dan Opex Rp 200 miliar. Estimasi agregat ROI inisiatif TI adalah\n18,4%, dengan rata-rata payback period 3,6 tahun.\nMPTI mengidentifikasi 60 inisiatif PTI yang diprioritaskan. Inisiatif prioritas tertinggi\nmencakup modernisasi ERP, pembangunan Data Warehouse Enterprise, penguatan Security\nOperation Center (SOC), dan implementasi AI Vision Inspection untuk mendukung mutu\nproduksi.\nManajemen risiko TI mengidentifikasi 32 risikoTI aktif dengan 6 risiko pada level\nekstrem, khususnya pada aspek keamanan siber, kelangsungan layanan, dan\nketergantungan vendor. Mitigasi dilakukan melalui penguatan BCP\/DR, sertifikasi ISO\n27001, dan strategi multi-vendor.\nDokumen ini bersifat sintetis (DUMMY) dan disusun mengikuti struktur dokumen MPTI\nBUMN pada umumnya untuk keperluan development dan testing sistem KPI Advisor.\nSeluruh data, angka, dan narasi bersifat fiktif.",
+        "kpi": "Berikut KPI pendukung TI yang akan dipantau untuk mengukur pencapaian MPTI. KPI\nini menjadi input bagi sistem KPI Advisor.\nKode             Perspective  Measurement            Formula                  Unit  Target  Weight\n2029\nKPI-FIN-01 Financial TI       TI ROI                 Net Benefit TI \/ Total   %     18      10\nKPI-FIN-02 Financial TI                              Investasi TI × 100%\nKPI-FIN-03 Financial TI\nKPI-CUS-04 Layanan TI         TI Opex Ratio          Opex TI \/ Total Opex % 8               5\nKPI-CUS-05 Layanan TI\nCost per Ticket        Total Cost \/ Tiket       Rp 180000 120000\nHelpdesk\nService Availability   Uptime \/ Total Time % 99.5             12\nCustomer Satisfaction TI Satisfied \/ Total      % 90          10\n(CSAT)                 Survey\nKPI-CUS-06 Layanan TI         First Call Resolution  Resolved Tier 1 \/ Total  %     75      6\nTicket\nKPI-CUS-07 Layanan TI         Mean Time to Resolve   Avg Resolve Time         Hour 6        8\n(MTTR)\nKPI-CUS-08 Layanan TI         Application Adoption   User Aktif \/ Total       % 85          6\nKPI-PRC-09 Tata Kelola TI     Rate                   Berlisensi\nKPI-PRC-10 Tata Kelola TI\nCOBIT Maturity Average Aggregated COBIT         Level 4       8\nProject On-Time        On-Time \/ Total          % 90          6\nDelivery               Project\nKPI-PRC-11 Tata Kelola TI     Project On-Budget      On-Budget \/ Total        % 85          4\nProject\nKode        Perspective     Measurement             Formula                 Unit  Target  Weight\n2029\nKPI-PRC-12 Tata Kelola TI   Change Success Rate     Successful Changes \/    % 95          4\nTotal\nKPI-PRC-13 Data & Aplikasi  Application             Aplikasi Aktif          count 55      5\nConsolidation\nKPI-PRC-14 Data & Aplikasi  API Uptime              API Uptime \/ Total      % 99.5        4\nKPI-PRC-15 Data & Aplikasi  Self-Service Analytics  KPI via Dashboard \/     % 80          4\nAdoption                Total\nKPI-PRC-16  Keamanan        Cybersecurity Incident  Incident \/ Endpoint     ratio 0.5     8\nInformasi       Rate\nKPI-PRC-17  Keamanan        Patch Compliance        Patched within SLA \/    % 95          5\nInformasi                               Total\nKPI-PRC-18  Keamanan        Zero-Day Exploit        Time to Mitigate        Hour 24       5\nInformasi       Mitigation Time\nKPI-PRC-19  Keamanan        Vulnerability           On-SLA \/ Total          % 90          5\nInformasi       Remediation SLA\nKPI-PRC-20  Keamanan        Awareness Training      Trained \/ Total         % 100         4\nInformasi       Coverage                Pegawai\nKPI-PRC-21 Continuity       DR Test Pass Rate       Pass \/ Total Test       % 100         3\nKPI-PRC-22 Continuity       Backup Success Rate     Successful Backup \/     % 99          3\nTotal\nKPI-LNG-23 SDM TI           SDM TI Certification    Tersertifikasi \/ Total  % 60          6\nCoverage                SDM TI\nKPI-LNG-24 SDM TI           Training Hours per SDM  Total Hours \/ SDM TI    Hour 60       4\nTI\nKPI-LNG-25 SDM TI           SDM TI Retention        Pegawai Bertahan \/      % 90          5\nTotal",
+        "strategic_objectives": "Kode                                                     Sasaran Strategis TI\nSS-TI-01   Meningkatkan SLA layanan TI mencapai 99,5% pada akhir periode\nSS-TI-02   Mencapai maturity COBIT level 4 minimal untuk domain APO dan BAI\nSS-TI-03   Mencapai certification ISO 27001 lingkup enterprise\nSS-TI-04   Mengkonsolidasikan 84 aplikasi menjadi 55 pada akhir periode\nSS-TI-05   Mencapai Zero Fatal Cybersecurity Incident pada 2029\nSS-TI-06   Mencapai self-service data analytics untuk 80% kebutuhan panduan\nSS-TI-07   Meningkatkan kompetensi SDM TI dengan minimal 60% tersertifikasi\nSS-TI-08   Mencapai adopsi digital 70% untuk layanan prioritas pelanggan"
+    },
+    "kpis": [
+        {
+            "code": "KPI-FIN-01",
+            "measurement": "Net Benefit TI \/ Total",
+            "unit": "%",
+            "target": "18",
+            "weight": "10"
+        },
+        {
+            "code": "KPI-FIN-02",
+            "measurement": "Investasi TI × 100%",
+            "unit": "",
+            "target": "",
+            "weight": ""
+        },
+        {
+            "code": "KPI-FIN-03",
+            "measurement": "",
+            "unit": "",
+            "target": "",
+            "weight": ""
+        },
+        {
+            "code": "KPI-CUS-04",
+            "measurement": "Opex TI \/ Total Opex % 8",
+            "unit": "",
+            "target": "",
+            "weight": "5"
+        },
+        {
+            "code": "KPI-CUS-05",
+            "measurement": "",
+            "unit": "",
+            "target": "",
+            "weight": ""
+        },
+        {
+            "code": "KPI-CUS-06",
+            "measurement": "Customer Satisfaction TI Satisfied \/ Total",
+            "unit": "%",
+            "target": "75",
+            "weight": "6"
+        },
+        {
+            "code": "KPI-CUS-07",
+            "measurement": "Mean Time to Resolve",
+            "unit": "",
+            "target": "",
+            "weight": "8"
+        },
+        {
+            "code": "KPI-CUS-08",
+            "measurement": "Application Adoption",
+            "unit": "",
+            "target": "",
+            "weight": "6"
+        },
+        {
+            "code": "KPI-PRC-09",
+            "measurement": "Berlisensi",
+            "unit": "",
+            "target": "",
+            "weight": ""
+        },
+        {
+            "code": "KPI-PRC-10",
+            "measurement": "",
+            "unit": "",
+            "target": "",
+            "weight": ""
+        },
+        {
+            "code": "KPI-PRC-11",
+            "measurement": "Project On-Budget",
+            "unit": "",
+            "target": "6",
+            "weight": "4"
+        },
+        {
+            "code": "KPI-PRC-12",
+            "measurement": "Successful Changes \/",
+            "unit": "",
+            "target": "2029",
+            "weight": "4"
+        },
+        {
+            "code": "KPI-PRC-13",
+            "measurement": "Data & Aplikasi",
+            "unit": "",
+            "target": "",
+            "weight": "5"
+        },
+        {
+            "code": "KPI-PRC-14",
+            "measurement": "API Uptime \/ Total",
+            "unit": "",
+            "target": "",
+            "weight": "4"
+        },
+        {
+            "code": "KPI-PRC-15",
+            "measurement": "Self-Service Analytics",
+            "unit": "",
+            "target": "",
+            "weight": "4"
+        },
+        {
+            "code": "KPI-PRC-16",
+            "measurement": "Cybersecurity Incident",
+            "unit": "",
+            "target": "",
+            "weight": "8"
+        },
+        {
+            "code": "KPI-PRC-17",
+            "measurement": "Patched within SLA \/",
+            "unit": "",
+            "target": "",
+            "weight": "5"
+        },
+        {
+            "code": "KPI-PRC-18",
+            "measurement": "Zero-Day Exploit",
+            "unit": "",
+            "target": "",
+            "weight": "5"
+        },
+        {
+            "code": "KPI-PRC-19",
+            "measurement": "Mitigation Time",
+            "unit": "",
+            "target": "",
+            "weight": "5"
+        },
+        {
+            "code": "KPI-PRC-20",
+            "measurement": "Awareness Training",
+            "unit": "",
+            "target": "",
+            "weight": "4"
+        },
+        {
+            "code": "KPI-PRC-21",
+            "measurement": "DR Test Pass Rate",
+            "unit": "",
+            "target": "",
+            "weight": "3"
+        },
+        {
+            "code": "KPI-PRC-22",
+            "measurement": "Backup Success Rate",
+            "unit": "",
+            "target": "",
+            "weight": "3"
+        },
+        {
+            "code": "KPI-LNG-23",
+            "measurement": "Tersertifikasi \/ Total",
+            "unit": "",
+            "target": "",
+            "weight": "6"
+        },
+        {
+            "code": "KPI-LNG-24",
+            "measurement": "Training Hours per SDM",
+            "unit": "",
+            "target": "",
+            "weight": "4"
+        },
+        {
+            "code": "KPI-LNG-25",
+            "measurement": "Pegawai Bertahan \/",
+            "unit": "",
+            "target": "",
+            "weight": "5"
+        }
+    ],
+    "initiatives": [],
+    "strategic_objectives": [
+        {
+            "code": "SS-TI-01",
+            "name": "Meningkatkan SLA layanan TI mencapai 99,5% pada akhir periode",
+            "perspective": ""
+        },
+        {
+            "code": "SS-TI-02",
+            "name": "Mencapai maturity COBIT level 4 minimal untuk domain APO dan BAI",
+            "perspective": ""
+        },
+        {
+            "code": "SS-TI-03",
+            "name": "Mencapai certification ISO 27001 lingkup enterprise",
+            "perspective": ""
+        },
+        {
+            "code": "SS-TI-04",
+            "name": "Mengkonsolidasikan 84 aplikasi menjadi 55 pada akhir periode",
+            "perspective": ""
+        },
+        {
+            "code": "SS-TI-05",
+            "name": "Mencapai Zero Fatal Cybersecurity Incident pada 2029",
+            "perspective": ""
+        },
+        {
+            "code": "SS-TI-06",
+            "name": "Mencapai self-service data analytics untuk 80% kebutuhan panduan",
+            "perspective": ""
+        },
+        {
+            "code": "SS-TI-07",
+            "name": "Meningkatkan kompetensi SDM TI dengan minimal 60% tersertifikasi",
+            "perspective": ""
+        },
+        {
+            "code": "SS-TI-08",
+            "name": "Mencapai adopsi digital 70% untuk layanan prioritas pelanggan",
+            "perspective": ""
+        }
+    ],
+    "metrics": [
+        "Net Benefit TI \/ Total",
+        "Investasi TI × 100%",
+        "Opex TI \/ Total Opex % 8",
+        "Customer Satisfaction TI Satisfied \/ Total",
+        "Mean Time to Resolve",
+        "Application Adoption",
+        "Berlisensi",
+        "Project On-Budget",
+        "Successful Changes \/",
+        "Data & Aplikasi",
+        "API Uptime \/ Total",
+        "Self-Service Analytics",
+        "Cybersecurity Incident",
+        "Patched within SLA \/",
+        "Zero-Day Exploit",
+        "Mitigation Time",
+        "Awareness Training",
+        "DR Test Pass Rate",
+        "Backup Success Rate",
+        "Tersertifikasi \/ Total",
+        "Training Hours per SDM",
+        "Pegawai Bertahan \/",
+        "%"
+    ],
+    "executive_summary": "Master Plan Teknologi Informasi (MPTI) PT PERURI (Persero) periode 2025-2029\nmerupakan dokumen perencanaan strategis bidang TI lima tahunan yang menyelaraskan\narah TI dengan tujuan perusahaan sebagaimana ditetapkan dalam RJPP 2025-2029.\nDokumen ini menetapkan arah Pengembangan Teknologi Informasi (PTI) yang sejalan\ndengan tujuan bisnis dan mendukung tercapainya Sasaran Strategis perusahaan.\nMPTI 2025-2029 disusun menggunakan kerangka The Open Group Architecture\nFramework (TOGAF) ADM dan diukur kematangannya melalui COBIT 2019. Penyusunan\nmencakup empat pilar utama: (i) Modernisasi Layanan TIinternal, (ii) Konsolidasi Data &\nAplikasi, (iii) Penguatan Tata Kelola dan Keamanan Informasi, (iv) Adopsi Teknologi\nStrategis (AI, IoT, dan Otomasi).\nTotal kebutuhan investasi TI selama periode MPTI diperkirakan Rp 480 miliar, terdiri\ndari Capex Rp 280 miliar dan Opex Rp 200 miliar. Estimasi agregat ROI inisiatif TI adalah\n18,4%, dengan rata-rata payback period 3,6 tahun.\nMPTI mengidentifikasi 60 inisiatif PTI yang diprioritaskan. Inisiatif prioritas tertinggi\nmencakup modernisasi ERP, pembangunan Data Warehouse Enterprise, penguatan Security\nOperation Center (SOC), dan implementasi AI Vision Inspection untuk mendukung mutu\nproduksi.\nManajemen risiko TI mengidentifikasi 32 risikoTI aktif dengan 6 risiko pada level\nekstrem, khususnya pada aspek keamanan siber, kelangsungan layanan, dan\nketergantungan vendor. Mitigasi dilakukan melalui penguatan BCP\/DR, sertifikasi ISO\n27001, dan strategi multi-vendor.\nDokumen ini bersifat sintetis (DUMMY) dan disusun mengikuti struktur dokumen MPTI\nBUMN pada umumnya untuk keperluan development dan testing sistem KPI Advisor.\nSeluruh data, angka, dan narasi bersifat fiktif.",
+    "error_message": null
+}

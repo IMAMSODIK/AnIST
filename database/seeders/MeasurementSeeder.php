@@ -5,116 +5,114 @@ namespace Database\Seeders;
 use App\Models\Measurement;
 use Illuminate\Database\Seeder;
 
+/**
+ * Seeds the 8 OMTI 2026 KPIs the user explicitly asked for
+ * (measurement #1, 2, 3, 4, 5, 7, 8, dan 9) sourced verbatim from
+ * docs/traceability/Draft OMTI 2026.pdf. KPIs #6 and #10 are intentionally
+ * excluded — the user only asked for the eight above.
+ *
+ * Per-quarter target values (in TargetSeeder) are interpreted as CUMULATIVE
+ * achievement against the annual target column "2026" in the PDF, because the
+ * PDF table layout lists "2026, TW I, TW II, TW III" with cumulative deltas
+ * typical of project-delivery KPIs (e.g. #1: 1 / 2 / 4 → annual 7 means Q4
+ * cumulative = 7; #8: 0 / 1 / 2 → annual 3 means Q4 cumulative = 3).
+ */
 class MeasurementSeeder extends Seeder
 {
     public function run(): void
     {
         $measurements = [
-            // Financial Perspective
-            [
-                'perspective' => 'Financial',
-                'objective' => 'Optimize IT Investment',
-                'measurement' => 'IT Investment Efficiency',
-                'definition' => 'Mengukur efisiensi penggunaan anggaran IT terhadap target yang ditetapkan',
-                'formula' => 'Higher is Better',
-                'unit' => '%',
-                'weight' => 10,
-            ],
-            [
-                'perspective' => 'Financial',
-                'objective' => 'Reduce Operational Cost',
-                'measurement' => 'IT Cost Reduction',
-                'definition' => 'Mengukur persentase pengurangan biaya operasional IT',
-                'formula' => 'Higher is Better',
-                'unit' => '%',
-                'weight' => 8,
-            ],
-
-            // Customer Perspective
+            // #1 — CUSTOMER / Innovation
             [
                 'perspective' => 'Customer',
-                'objective' => 'Improve Service Quality',
-                'measurement' => 'System Availability',
-                'definition' => 'Mengukur ketersediaan sistem utama (uptime)',
-                'formula' => 'Higher is Better',
-                'unit' => '%',
-                'weight' => 10,
-            ],
-            [
-                'perspective' => 'Customer',
-                'objective' => 'Enhance User Satisfaction',
-                'measurement' => 'User Satisfaction Index',
-                'definition' => 'Mengukur tingkat kepuasan pengguna terhadap layanan IT',
-                'formula' => 'Higher is Better',
-                'unit' => 'Score',
-                'weight' => 8,
+                'objective'   => 'Innovation',
+                'measurement' => 'Penyelesaian Implementasi Sistem Aplikasi Upgrade/Baru',
+                'definition'  => 'Indikator yang mengukur keberhasilan, ketepatan waktu, dan pemenuhan kualitas dari seluruh tahapan proses penerapan sistem aplikasi yang baru/upgrade, mulai dari fase perencanaan, pengujian, hingga sistem tersebut siap beroperasi (go-live) untuk mendukung operasional bisnis perusahaan.',
+                'formula'     => 'Higher is Better',
+                'unit'        => 'Jumlah',
+                'weight'      => 10,
             ],
 
-            // Internal Process Perspective
+            // #2 — INTERNAL BUSINESS PROCESS / Operational Excellence
             [
                 'perspective' => 'Internal Process',
-                'objective' => 'Digital Transformation',
-                'measurement' => 'Implementasi Sistem Digital',
-                'definition' => 'Mengukur jumlah implementasi sistem digital baru sesuai roadmap',
-                'formula' => 'Higher is Better',
-                'unit' => 'Number',
-                'weight' => 12,
-            ],
-            [
-                'perspective' => 'Internal Process',
-                'objective' => 'Strengthen Cybersecurity',
-                'measurement' => 'Cybersecurity Compliance Index',
-                'definition' => 'Mengukur tingkat kepatuhan terhadap standar keamanan siber',
-                'formula' => 'Higher is Better',
-                'unit' => 'Index',
-                'weight' => 10,
-            ],
-            [
-                'perspective' => 'Internal Process',
-                'objective' => 'Modernize Payment System',
-                'measurement' => 'Payment System Modernization',
-                'definition' => 'Mengukur progres modernisasi sistem pembayaran',
-                'formula' => 'Higher is Better',
-                'unit' => '%',
-                'weight' => 10,
-            ],
-            [
-                'perspective' => 'Internal Process',
-                'objective' => 'Enterprise Architecture Compliance',
-                'measurement' => 'Enterprise Architecture Adoption Rate',
-                'definition' => 'Mengukur tingkat adopsi enterprise architecture dalam pengembangan sistem',
-                'formula' => 'Higher is Better',
-                'unit' => '%',
-                'weight' => 8,
+                'objective'   => 'Operational Excellence',
+                'measurement' => 'Cybersecurity Incident',
+                'definition'  => 'Indikator yang menunjukkan jumlah kejadian kasus pelanggaran keamanan cyber yang berdampak pada bisnis Peruri.',
+                'formula'     => 'Lower is Better',
+                'unit'        => 'Jumlah',
+                'weight'      => 10,
             ],
 
-            // Learning & Growth Perspective
+            // #3 — INTERNAL BUSINESS PROCESS / Operational Excellence
             [
-                'perspective' => 'Learning & Growth',
-                'objective' => 'Develop AI Capabilities',
-                'measurement' => 'Artificial Intelligence Implementation',
-                'definition' => 'Mengukur jumlah implementasi solusi AI/ML dalam operasional',
-                'formula' => 'Higher is Better',
-                'unit' => 'Number',
-                'weight' => 12,
+                'perspective' => 'Internal Process',
+                'objective'   => 'Operational Excellence',
+                'measurement' => 'Pencapaian Project Management: Traceability',
+                'definition'  => 'Indikator yang menunjukkan terpenuhinya target/objectives/sasaran dari project manajement sesuai timeline yang telah ditetapkan pada Project Charter. Lifecycle 5 tahap: Kajian (20%), TOR (40%), SPK (60%), Implementasi (80%), BAST/Go Live (100%).',
+                'formula'     => 'Based on Project Charter (Higher is Better)',
+                'unit'        => '%',
+                'weight'      => 10,
             ],
+
+            // #4 — INTERNAL BUSINESS PROCESS / Operational Excellence
+            // Shared KPI: IT's contribution = maintaining SLA Network 98%
+            // and Aplikasi 92%. Evidence in docs/percepatan/ are SLA reports.
             [
-                'perspective' => 'Learning & Growth',
-                'objective' => 'Enhance IT Competency',
-                'measurement' => 'IT Certification Achievement',
-                'definition' => 'Mengukur jumlah sertifikasi IT yang berhasil diperoleh karyawan',
-                'formula' => 'Higher is Better',
-                'unit' => 'Number',
-                'weight' => 6,
+                'perspective' => 'Internal Process',
+                'objective'   => 'Operational Excellence',
+                'measurement' => 'Percepatan proses pembayaran (sharing KPI)',
+                'definition'  => 'Indikator yang mengukur efektivitas dalam mempercepat siklus proses pembayaran, mulai dari penerimaan dokumen/tagihan hingga pembayaran berhasil diproses sesuai target yang ditetapkan. Ketersediaan Infrastruktur dan Aplikasi dengan pemenuhan SLA Network 98% dan Aplikasi sebesar 92%.',
+                'formula'     => 'Higher is Better',
+                'unit'        => '%',
+                'weight'      => 10,
             ],
+
+            // #5 — INTERNAL BUSINESS PROCESS / Operational Excellence
             [
-                'perspective' => 'Learning & Growth',
-                'objective' => 'Innovation Culture',
-                'measurement' => 'Innovation Index',
-                'definition' => 'Mengukur tingkat inovasi dan inisiatif improvement yang dihasilkan',
-                'formula' => 'Higher is Better',
-                'unit' => 'Index',
-                'weight' => 6,
+                'perspective' => 'Internal Process',
+                'objective'   => 'Operational Excellence',
+                'measurement' => 'Realisasi Nilai Investasi (KPI BP.BUMN)',
+                'definition'  => 'Indikator yang menunjukkan persentase pencapaian program Pengadaan Capex sesuai RKAP 2026. Merealisasikan investasi pada tahun berjalan dengan action plan pengajuan investasi, evaluasi dan klarifikasi teknis tepat waktu.',
+                'formula'     => 'Higher is Better',
+                'unit'        => '%',
+                'weight'      => 10,
+            ],
+
+            // #7 — INTERNAL BUSINESS PROCESS / Value Creation (3-stage EA
+            // Project Management lifecycle).
+            [
+                'perspective' => 'Internal Process',
+                'objective'   => 'Value Creation',
+                'measurement' => 'Pencapaian Project Management: Implementasi Enterprise Architecture guna Mendukung Pilar Security Solutions dan Pilar SPBE dalam Pemenuhan Strategic Initiative Digital Platform dan Technology Capabilities',
+                'definition'  => 'Indikator yang menunjukkan terpenuhinya target/objectives/sasaran dari project manajement sesuai timeline yang telah ditetapkan pada Project Charter. Lifecycle 3 tahap: (1) Tahap Perencanaan (TOR, EE) = 25%, (2) Tahap Development (SPK, FGD) = 80%, (3) Tahap Implementasi (BAST) = 100%.',
+                'formula'     => 'Based on Project Charter (Higher is Better)',
+                'unit'        => '%',
+                'weight'      => 10,
+            ],
+
+            // #8 — INTERNAL BUSINESS PROCESS / Operational Excellence (count
+            // of supporting-unit processes live with AI).
+            [
+                'perspective' => 'Internal Process',
+                'objective'   => 'Operational Excellence',
+                'measurement' => 'Jumlah proses supporting unit yang menggunakan AI',
+                'definition'  => 'Indikator yang menunjukkan jumlah proses kerja pada supporting unit perusahaan yang telah mengimplementasikan dan menggunakan teknologi Artificial Intelligence (AI) secara aktif untuk mendukung otomatisasi, analisis, pengambilan keputusan, peningkatan efisiensi, atau peningkatan kualitas layanan operasional.',
+                'formula'     => 'Higher is Better',
+                'unit'        => 'Jumlah',
+                'weight'      => 10,
+            ],
+
+            // #9 — INTERNAL BUSINESS PROCESS / Value Creation (biennial IT
+            // Maturity assessment, target Skor 3.85).
+            [
+                'perspective' => 'Internal Process',
+                'objective'   => 'Value Creation',
+                'measurement' => 'IT Maturity Level (KPI BP BUMN)',
+                'definition'  => 'Indikator yang menunjukkan kematangan tingkat keberlangsungan dari sebuah proses menuju kematangan teknologi informasi. Pelaksanaan asesmen IT Maturity Level berlaku 2 tahun (biennial).',
+                'formula'     => 'Higher is Better',
+                'unit'        => 'Skor',
+                'weight'      => 10,
             ],
         ];
 

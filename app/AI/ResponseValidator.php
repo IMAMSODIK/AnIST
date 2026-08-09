@@ -101,6 +101,110 @@ class ResponseValidator
             }
         }
 
+        // Validate sla_targets if present. Used by SLA / availability KPIs to
+        // capture the per-target uptime breakdown (e.g. each application's
+        // uptime from a PRTG report). Each entry must be an object with a
+        // non-empty string `name` and a numeric `uptime`.
+        if (isset($data['sla_targets'])) {
+            if (!is_array($data['sla_targets'])) {
+                $errors[] = "sla_targets must be an array";
+            } else {
+                foreach ($data['sla_targets'] as $index => $target) {
+                    if (!is_array($target)) {
+                        $errors[] = "sla_targets[{$index}] must be an object";
+                        break;
+                    }
+                    if (!isset($target['name']) || !is_string($target['name']) || trim($target['name']) === '') {
+                        $errors[] = "sla_targets[{$index}].name must be a non-empty string";
+                        break;
+                    }
+                    if (!isset($target['uptime']) || !is_numeric($target['uptime'])) {
+                        $errors[] = "sla_targets[{$index}].uptime must be numeric";
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Validate investment_items if present. Used by Capex realization /
+        // Realisasi Nilai Investasi KPIs to capture the per-item budget vs
+        // realized breakdown. Each entry must be an object with a non-empty
+        // string `name`, numeric `budget`, `realized`, and `percentage`.
+        if (isset($data['investment_items'])) {
+            if (!is_array($data['investment_items'])) {
+                $errors[] = "investment_items must be an array";
+            } else {
+                foreach ($data['investment_items'] as $index => $item) {
+                    if (!is_array($item)) {
+                        $errors[] = "investment_items[{$index}] must be an object";
+                        break;
+                    }
+                    if (!isset($item['name']) || !is_string($item['name']) || trim($item['name']) === '') {
+                        $errors[] = "investment_items[{$index}].name must be a non-empty string";
+                        break;
+                    }
+                    if (isset($item['budget']) && !is_numeric($item['budget'])) {
+                        $errors[] = "investment_items[{$index}].budget must be numeric";
+                        break;
+                    }
+                    if (isset($item['realized']) && !is_numeric($item['realized'])) {
+                        $errors[] = "investment_items[{$index}].realized must be numeric";
+                        break;
+                    }
+                    if (isset($item['percentage']) && !is_numeric($item['percentage'])) {
+                        $errors[] = "investment_items[{$index}].percentage must be numeric";
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Validate traceability_items if present. Used by Project Management:
+        // Traceability KPI to capture per-project lifecycle stage breakdown so
+        // Laravel can aggregate max stage per project across evidence files.
+        // Each entry must be an object with a non-empty string `name`, a valid
+        // `stage` (one of: Kajian, TOR, SPK, Implementasi, BAST), and a numeric
+        // `achievement_pct` (0-100).
+        if (isset($data['traceability_items'])) {
+            if (!is_array($data['traceability_items'])) {
+                $errors[] = "traceability_items must be an array";
+            } else {
+                $validStages = ['Kajian', 'TOR', 'SPK', 'Implementasi', 'BAST', 'Perencanaan', 'Development'];
+
+                foreach ($data['traceability_items'] as $index => $item) {
+                    if (!is_array($item)) {
+                        $errors[] = "traceability_items[{$index}] must be an object";
+                        break;
+                    }
+                    if (!isset($item['name']) || !is_string($item['name']) || trim($item['name']) === '') {
+                        $errors[] = "traceability_items[{$index}].name must be a non-empty string";
+                        break;
+                    }
+                    if (!isset($item['stage']) || !is_string($item['stage'])) {
+                        $errors[] = "traceability_items[{$index}].stage must be a string";
+                        break;
+                    }
+                    // Stage matching is case-insensitive but must equal one
+                    // of the canonical lifecycle stages.
+                    $stageLower = strtolower(trim($item['stage']));
+                    $canonicalStages = array_map('strtolower', $validStages);
+                    if (!in_array($stageLower, $canonicalStages, true)) {
+                        $errors[] = "traceability_items[{$index}].stage must be one of: " . implode(', ', $validStages);
+                        break;
+                    }
+                    if (!isset($item['achievement_pct']) || !is_numeric($item['achievement_pct'])) {
+                        $errors[] = "traceability_items[{$index}].achievement_pct must be numeric";
+                        break;
+                    }
+                    $pct = (float) $item['achievement_pct'];
+                    if ($pct < 0 || $pct > 100) {
+                        $errors[] = "traceability_items[{$index}].achievement_pct must be between 0 and 100";
+                        break;
+                    }
+                }
+            }
+        }
+
         if (!empty($errors)) {
             Log::warning('AI response validation errors', [
                 'errors' => $errors,
@@ -270,6 +374,133 @@ class ResponseValidator
                 fn ($a) => $a !== '',
             ));
         }
+
+        // Normalize sla_targets — array of {name, uptime} objects. Drop any
+        // malformed entries and coerce uptime to float. Used by SLA /
+        // availability KPIs so the breakdown is preserved in the audit trail.
+        if (!isset($data['sla_targets'])) {
+            $data['sla_targets'] = [];
+        }
+
+        if (!is_array($data['sla_targets'])) {
+            $data['sla_targets'] = [];
+        }
+
+        $data['sla_targets'] = array_values(array_filter(
+            array_map(function ($t) {
+                if (!is_array($t)) {
+                    return null;
+                }
+                $name = is_string($t['name'] ?? null) ? trim($t['name']) : '';
+                $uptime = isset($t['uptime']) && is_numeric($t['uptime']) ? (float) $t['uptime'] : null;
+                if ($name === '' || $uptime === null) {
+                    return null;
+                }
+                return ['name' => $name, 'uptime' => $uptime];
+            }, $data['sla_targets']),
+            fn ($t) => $t !== null,
+        ));
+
+        // Normalize investment_items — array of {name, budget, realized,
+        // percentage, status} objects. Drop any malformed entries and coerce
+        // numeric fields to float. Used by Capex realization KPIs so the
+        // breakdown is preserved in the audit trail and aggregated by
+        // EvidenceService.
+        if (!isset($data['investment_items'])) {
+            $data['investment_items'] = [];
+        }
+
+        if (!is_array($data['investment_items'])) {
+            $data['investment_items'] = [];
+        }
+
+        $data['investment_items'] = array_values(array_filter(
+            array_map(function ($item) {
+                if (!is_array($item)) {
+                    return null;
+                }
+                $name = is_string($item['name'] ?? null) ? trim($item['name']) : '';
+                if ($name === '') {
+                    return null;
+                }
+                return [
+                    'name' => $name,
+                    'budget' => isset($item['budget']) && is_numeric($item['budget']) ? (float) $item['budget'] : 0,
+                    'realized' => isset($item['realized']) && is_numeric($item['realized']) ? (float) $item['realized'] : 0,
+                    'percentage' => isset($item['percentage']) && is_numeric($item['percentage']) ? (float) $item['percentage'] : 0,
+                    'status' => is_string($item['status'] ?? null) ? trim($item['status']) : '',
+                ];
+            }, $data['investment_items']),
+            fn ($item) => $item !== null,
+        ));
+
+        // Normalize traceability_items — array of {name, stage,
+        // achievement_pct} objects. Drop malformed entries, coerce pct to
+        // float, and canonicalize the stage to its title-case form so the
+        // aggregation in EvidenceService can switch on exact strings.
+        // Used by Project Management: Traceability KPI so the per-project
+        // lifecycle progression is preserved in the audit trail and
+        // aggregated (MAX stage per project) by EvidenceService.
+        if (!isset($data['traceability_items'])) {
+            $data['traceability_items'] = [];
+        }
+
+        if (!is_array($data['traceability_items'])) {
+            $data['traceability_items'] = [];
+        }
+
+        $stageMap = [
+            'kajian' => 'Kajian',
+            'tor' => 'TOR',
+            'kak' => 'TOR',
+            'spk' => 'SPK',
+            'implementasi' => 'Implementasi',
+            'bast' => 'BAST',
+            'go live' => 'BAST',
+            'go-live' => 'BAST',
+            'golive' => 'BAST',
+            'production' => 'BAST',
+            // 3-stage Enterprise Architecture lifecycle (OMTI 2026 #7):
+            // Perencanaan (TOR/EE) = 25, Development (SPK/FGD) = 80,
+            // Implementasi (BAST) = 100. The 3-stage "Implementasi" maps to
+            // "BAST" canonical stage because the OMTI lifecycle uses the
+            // label "Tahap Implementasi (BAST)" — i.e. it IS the BAST/Go-Live
+            // stage, achievement_pct provided by the AI distinguishes it from
+            // the 5-stage "Implementasi" (80).
+            'perencanaan' => 'Perencanaan',
+            'tahap perencanaan' => 'Perencanaan',
+            'planning' => 'Perencanaan',
+            'development' => 'Development',
+            'tahap development' => 'Development',
+        ];
+
+        $data['traceability_items'] = array_values(array_filter(
+            array_map(function ($item) use ($stageMap) {
+                if (!is_array($item)) {
+                    return null;
+                }
+                $name = is_string($item['name'] ?? null) ? trim($item['name']) : '';
+                if ($name === '') {
+                    return null;
+                }
+                $stageRaw = is_string($item['stage'] ?? null) ? strtolower(trim($item['stage'])) : '';
+                $stage = $stageMap[$stageRaw] ?? null;
+                if ($stage === null) {
+                    return null;
+                }
+                $pct = isset($item['achievement_pct']) && is_numeric($item['achievement_pct'])
+                    ? (float) $item['achievement_pct']
+                    : 0;
+                // Clamp + round to 2 decimals so the audit trail is tidy.
+                $pct = max(0, min(100, round($pct, 2)));
+                return [
+                    'name' => $name,
+                    'stage' => $stage,
+                    'achievement_pct' => $pct,
+                ];
+            }, $data['traceability_items']),
+            fn ($item) => $item !== null,
+        ));
 
         // Trim analysis
         $data['analysis'] = trim($data['analysis']);

@@ -1,0 +1,727 @@
+{
+    "document_type": "RJPP",
+    "company": "PT PERURI (Persero)",
+    "period": "2025-2029",
+    "source_file": "RJPP_PT_PERURI_2025-2029_DUMMY.pdf",
+    "total_pages": 0,
+    "toc": [
+        {
+            "code": "BAB I",
+            "title": "PENDAHULUAN",
+            "page": 9
+        },
+        {
+            "code": "1.1",
+            "title": "Latar Belakang",
+            "page": 9
+        },
+        {
+            "code": "1.2",
+            "title": "Maksud dan Tujuan",
+            "page": 12
+        },
+        {
+            "code": "1.3",
+            "title": "Ruang Lingkup",
+            "page": 13
+        },
+        {
+            "code": "1.4",
+            "title": "Sistematika Penulisan",
+            "page": 13
+        },
+        {
+            "code": "BAB II",
+            "title": "PROFIL PERUSAHAAN",
+            "page": 15
+        },
+        {
+            "code": "2.1",
+            "title": "Sejarah dan Pendirian",
+            "page": 15
+        },
+        {
+            "code": "2.2",
+            "title": "Kedudukan Hukum dan Tugas Pokok",
+            "page": 18
+        },
+        {
+            "code": "2.3",
+            "title": "Visi, Misi, dan Nilai-Nilai",
+            "page": 20
+        },
+        {
+            "code": "2.4",
+            "title": "Struktur Organisasi",
+            "page": 23
+        },
+        {
+            "code": "2.5",
+            "title": "Unit Kerja",
+            "page": 25
+        },
+        {
+            "code": "BAB III",
+            "title": "KONDISI INTERNAL PERUSAHAAN",
+            "page": 28
+        },
+        {
+            "code": "3.1",
+            "title": "Kelembagaan",
+            "page": 28
+        },
+        {
+            "code": "3.2",
+            "title": "Sumber Daya Manusia",
+            "page": 31
+        },
+        {
+            "code": "3.3",
+            "title": "Keuangan",
+            "page": 38
+        },
+        {
+            "code": "3.4",
+            "title": "Operasional dan Produksi",
+            "page": 45
+        },
+        {
+            "code": "3.5",
+            "title": "Pemasaran",
+            "page": 52
+        },
+        {
+            "code": "3.6",
+            "title": "Teknologi Informasi",
+            "page": 58
+        },
+        {
+            "code": "3.7",
+            "title": "Tata Kelola",
+            "page": 64
+        },
+        {
+            "code": "3.8",
+            "title": "Manajemen Risiko Internal",
+            "page": 68
+        },
+        {
+            "code": "BAB IV",
+            "title": "KONDISI LINGKUNGAN EKSTERNAL",
+            "page": 72
+        },
+        {
+            "code": "4.1",
+            "title": "Makro Ekonomi",
+            "page": 72
+        },
+        {
+            "code": "4.2",
+            "title": "Industri",
+            "page": 78
+        },
+        {
+            "code": "4.3",
+            "title": "Pesaing",
+            "page": 84
+        },
+        {
+            "code": "4.4",
+            "title": "Regulasi",
+            "page": 88
+        },
+        {
+            "code": "4.5",
+            "title": "SWOT Analysis",
+            "page": 92
+        },
+        {
+            "code": "BAB V",
+            "title": "ANALISIS STRATEGIS",
+            "page": 98
+        },
+        {
+            "code": "5.1",
+            "title": "Porter's Five Forces",
+            "page": 98
+        },
+        {
+            "code": "5.2",
+            "title": "PESTEL Analysis",
+            "page": 102
+        },
+        {
+            "code": "5.3",
+            "title": "Value Chain Analysis",
+            "page": 106
+        },
+        {
+            "code": "5.4",
+            "title": "VRIO Analysis",
+            "page": 109
+        },
+        {
+            "code": "5.5",
+            "title": "Balanced Scorecard Baseline",
+            "page": 113
+        },
+        {
+            "code": "BAB VI",
+            "title": "RENCANA STRATEGIS",
+            "page": 117
+        },
+        {
+            "code": "6.1",
+            "title": "Arah Strategi",
+            "page": 117
+        },
+        {
+            "code": "6.2",
+            "title": "Tujuan Jangka Panjang",
+            "page": 120
+        },
+        {
+            "code": "6.3",
+            "title": "Sasaran Strategis",
+            "page": 123
+        },
+        {
+            "code": "6.4",
+            "title": "Indikator Kinerja Kunci (KPI)",
+            "page": 127
+        },
+        {
+            "code": "6.5",
+            "title": "Inisiatif Strategis",
+            "page": 156
+        },
+        {
+            "code": "6.6",
+            "title": "Roadmap 5 Tahun",
+            "page": 168
+        },
+        {
+            "code": "BAB VII",
+            "title": "RENCANA KERJA DAN ANGGARAN",
+            "page": 175
+        },
+        {
+            "code": "7.1",
+            "title": "Program Prioritas",
+            "page": 175
+        },
+        {
+            "code": "7.2",
+            "title": "Anggaran per Tahun",
+            "page": 180
+        },
+        {
+            "code": "7.3",
+            "title": "Sumber Pendanaan",
+            "page": 188
+        },
+        {
+            "code": "BAB VIII",
+            "title": "MANAJEMEN RISIKO",
+            "page": 192
+        },
+        {
+            "code": "BAB IX",
+            "title": "PENUTUP",
+            "page": 200
+        }
+    ],
+    "sections": {
+        "executive_summary": "Rencana Jangka Panjang Perusahaan (RJPP) PT PERURI (Persero) periode 2025-2029\nmerupakan dokumen perencanaan strategis lima tahunan yang menjadi landasan arah\npengembangan usaha sektor pengelolaan percetakan uang dan logam. Dokumen ini disusun\ndengan mempertimbangkan dinamika makroekonomi, perubahan regulasi, perkembangan\nteknologi, serta tantangan internal perusahaan.\nDalam periode 2025-2029, perusahaan menetapkan tiga pilar strategi utama: (i)\nModernisasi Proses Produksi, (ii) Diversifikasi Layanan, dan (iii) Penguatan Tata Kelola\nBerbasis Digital. Pilar-pilar tersebut diturunkan ke dalam tujuh sasaran strategis dengan\ndua puluh lima Indikator Kinerja Kunci (KPI) yang akan dipantau secara berkala.\nTotal kebutuhan investasi strategis untuk pencapaian RJPP periode ini diperkirakan\nsebesar Rp 2,4 triliun, didanai melalui laba ditahan, kerjasama strategis, dan pinjaman\njangka panjang. Estimasi tingkat pengembalian investasi agregat adalah 12,4% dengan\npayback period rata-rata 4,2 tahun.\nManajemen risiko periode 2025-2029 mengidentifikasi 47 risiko utama, dengan 8 risiko\nberada pada level ekstrem. Mitigasi prioritas diberikan pada risiko keamanan siber,\nketergantungan bahan baku, dan disrupsi rantai pasok.\nDokumen ini bersifat sintetis (DUMMY) dan dirancang untuk keperluan pengembangan\ndan pengujian sistem KPI Advisor. Seluruh data, angka, dan narasi bersifat fiktif namun\nmengikuti struktur standar dokumen RJPP BUMN.",
+        "kpi": "Berikut adalah daftar 25 KPI yang akan dipantau selama periode RJPP 2025-2029.\nSetiap KPI memiliki target tahunan dan terhubung ke sasaran strategis.\nKode        Perspective     Measurement      Formula                       Unit   Target  Weight\n2029\nReturn on Equity\nKPI-FIN-01 Financial     (ROE)               Laba Bersih \/ Ekuitas × 100% %       14      15\nReturn on Assets\nKPI-FIN-02 Financial     (ROA)               Laba Bersih \/ Total Aset ×    %      8.5     10\n100%\nNet Profit Margin\nKPI-FIN-03 Financial                         Laba Bersih \/ Pendapatan ×    %      11      14\nRevenue Growth      100%\n(CAGR 5Y)\nKPI-FIN-04 Financial     Current Ratio       (Ending\/Starting)^(1\/5)-1     %      8       10\nKPI-FIN-05 Financial     Customer\nKPI-CUS-06 Customer      Satisfaction (NPS)  Aktiva Lancar \/ Utang Lancar ratio   1.8     2\nCustomer\nRetention           NPS Survey                    Score  65      70\nNew Market\nKPI-CUS-07 Customer      Acquisition         Existing Customer \/ Total     %      95      96\nOn-Time Delivery    Customer\nComplaint\nKPI-CUS-08 Customer      Resolution Time     New Logo \/ Total Customer %          12      20\nKPI-CUS-09 Customer      Production Yield    On-Time \/ Total Delivery      %      97      99\nKPI-CUS-10 Customer                          Avg resolve time              Hour   24      12\nKPI-PRC-11  Internal                         Output baik \/ Total output ×  %      98      99.5\nProcess                          100%\nKPI-PRC-12  Internal     Defect Rate         Defect \/ Total Output         PPM 80         30\nProcess\nKPI-PRC-13  Internal     Equipment           Produksi \/ Kapasitas          %      90      95\nProcess      Utilization\nKPI-PRC-14  Internal     Energy Intensity Energi \/ Output                  kWh\/lot 12     9\nProcess\nKPI-PRC-15  Internal     Carbon Footprint Emisi CO2 total                  tCO2e 24000 18000\nProcess\nKPI-PRC-16  Internal     Cybersecurity       Insiden Aktif \/ 1000 endpoint ratio 1.5      0.5\nProcess      Incident Rate\nKPI-PRC-17  Internal     Mean Time to        Rata-rata MTTR                Hour 8         4\nProcess      Recover (MTTR)\nKPI-LNG-18 Learning      Training Hours per  Total jam training \/ pegawai  Hour   48      60\nPegawai\nKPI-LNG-19 Learning      Training Coverage Pegawai dilatih \/ Total         %      95      100\nKPI-LNG-20 Learning      Innovation          % inovasi diadopsi            %      50      70\nAdoption Rate\nKPI-LNG-21 Learning      Employee            Survey engagement             Index 75       85\nEngagement Index\nKPI-LNG-22 Learning      Turnover Rate       Pegawai keluar \/ Total        %      2.5     1.5\nKPI-GOV-23  Internal     GCG Score           Penilaian agregat GCG         Score 85       92\nProcess\nKPI-GOV-24  Internal     Audit Follow-up     Temuan selesai \/ total temuan %      90      98\nProcess      Rate\nKPI-GOV-25  Internal     Risk Mitigation     Risiko termitigasi \/ total risiko %  85      95\nProcess      Coverage",
+        "initiatives": "Total 60 inisiatif strategis telah diidentifikasi untuk mendukung pencapaian KPI. Detail\ninisiatif per KPI dapat dilihat pada Lampiran B.\n1. IS-001 : Modernisasi Customer Portal Tahap II\n2. IS-002 : Transformasi Sistem Mutu\n3. IS-003 : Optimalisasi Single Note Inspection Tahap I\n4. IS-004 : Implementasi KLBI Fase Awal\n5. IS-005 : Pengembangan ISO 27001\n6. IS-006 : Audit Single Note Inspection\n7. IS-007 : Optimalisasi Data Warehouse Tahap I\n8. IS-008 : Implementasi Mobile Apps\n9. IS-009 : Audit Layanan Reimburse Berbasis AI\n10. IS-010 : Penyusunan Core Banking Tahap II\n11. IS-011 : Peningkatan Data Warehouse Hibrida\n12. IS-012 : Penyusunan Suplai Rendemen\n13. IS-013 : Modernisasi ISO 27001 Tahap I\n14. IS-014 : Pengembangan Core Banking\n15. IS-015 : Optimalisasi Cyber Security Hibrida\n16. IS-016 : Audit KLBI\n17. IS-017 : Audit Sistem Aset Tetap Tahap II\n18. IS-018 : Transformasi Perizinan Online Hibrida\n19. IS-019 : Optimalisasi AI Vision Inspection Berbasis AI\n20. IS-020 : Penyusunan Sistem Layanan Tahap II\n21. IS-021 : Implementasi ERP Core Berbasis AI\n22. IS-022 : Integrasi Sistem Aset Tetap End-to-End\n23. IS-023 : Digitasi AI Vision Inspection Hibrida\n24. IS-024 : Audit KLBI Tahap I\n25. IS-025 : Modernisasi Pakta Integritas Digital Hibrida\n26. IS-026 : Peningkatan Perizinan Online\n27. IS-027 : Implementasi Layanan Reimburse Tahap I\n28. IS-028 : Digitasi Network Operation Center Fase Awal\n29. IS-029 : Pengembangan AI Vision Inspection Hibrida\n30. IS-030 : Audit ERP Core Tahap I\n31. IS-031 : Pengembangan Suplai Rendemen\n32. IS-032 : Transformasi Data Warehouse Tahap II\n33. IS-033 : Peningkatan Network Operation Center Fase Awal\n34. IS-034 : Digitasi Sistem Mutu Hibrida\n35. IS-035 : Digitasi Customer Portal Fase Awal\n36. IS-036 : Audit Blockhain Traceability End-to-End\n37. IS-037 : Pengembangan Mobile Apps Tahap II\n38. IS-038 : Modernisasi Blockhain Traceability Tahap II\n39. IS-039 : Peningkatan Helpdesk ITSM Tahap I\n40. IS-040 : Optimalisasi Single Note Inspection Hibrida\n41. IS-041 : Pengembangan ISO 27001 Tahap I\n42. IS-042 : Digitasi Timbangan Logam Berbasis AI\n43. IS-043 : Modernisasi Data Warehouse Fase Awal\n44. IS-044 : Peningkatan ISO 27001 Hibrida\n45. IS-045 : Optimalisasi Layanan Reimburse Berbasis AI\n46. IS-046 : Integrasi ISO 27001 Skala Perusahaan\n47. IS-047 : Transformasi Blockhain Traceability\n48. IS-048 : Modernisasi Core Banking Fase Awal\n49. IS-049 : Modernisasi Blockhain Traceability Hibrida\n50. IS-050 : Peningkatan Sistem Pendukung Payroll Tahap I\n51. IS-051 : Peningkatan ISO 27001 Tahap I\n52. IS-052 : Pengembangan Blockhain Traceability End-to-End\n53. IS-053 : Modernisasi Sistem Layanan End-to-End\n54. IS-054 : Pengembangan Network Operation Center\n55. IS-055 : Audit Cyber Security Berbasis AI\n56. IS-056 : Penyusunan Helpdesk ITSM\n57. IS-057 : Peningkatan ISO 27001 Tahap II\n58. IS-058 : Integrasi Customer Portal Tahap II\n59. IS-059 : Audit Sistem Pendukung Payroll Berbasis AI\n60. IS-060 : Optimalisasi Helpdesk ITSM Fase Awal",
+        "strategic_objectives": "Kode                               Sasaran Strategis           Perspective (BSC)\nSS-01     Modernisasi Proses Produksi                     Internal Process\nSS-02     Diversifikasi Layanan Komersial                 Customer\nSS-03     Penguatan Tata Kelola Digital                   Internal Process\nSS-04     Peningkatan Profesionalisme SDM                 Learning\nSS-05     Optimalisasi Struktur Biaya                     Financial\nSS-06     Penguatan Cyber Security Posture                Internal Process\nSS-07     Sustainability & ESG                            Customer"
+    },
+    "kpis": [
+        {
+            "code": "KPI-FIN-01",
+            "measurement": "Laba Bersih \/ Ekuitas × 100% %",
+            "unit": "",
+            "target": "14",
+            "weight": "15"
+        },
+        {
+            "code": "KPI-FIN-02",
+            "measurement": "Laba Bersih \/ Total Aset ×",
+            "unit": "%",
+            "target": "8.5",
+            "weight": "10"
+        },
+        {
+            "code": "KPI-FIN-03",
+            "measurement": "Laba Bersih \/ Pendapatan ×",
+            "unit": "%",
+            "target": "11",
+            "weight": "14"
+        },
+        {
+            "code": "KPI-FIN-04",
+            "measurement": "(Ending\/Starting)^(1\/5)-1",
+            "unit": "%",
+            "target": "8",
+            "weight": "10"
+        },
+        {
+            "code": "KPI-FIN-05",
+            "measurement": "Customer",
+            "unit": "",
+            "target": "",
+            "weight": ""
+        },
+        {
+            "code": "KPI-CUS-06",
+            "measurement": "Aktiva Lancar \/ Utang Lancar ratio",
+            "unit": "",
+            "target": "1.8",
+            "weight": "2"
+        },
+        {
+            "code": "KPI-CUS-07",
+            "measurement": "Existing Customer \/ Total",
+            "unit": "%",
+            "target": "95",
+            "weight": "96"
+        },
+        {
+            "code": "KPI-CUS-08",
+            "measurement": "New Logo \/ Total Customer %",
+            "unit": "",
+            "target": "12",
+            "weight": "20"
+        },
+        {
+            "code": "KPI-CUS-09",
+            "measurement": "On-Time \/ Total Delivery",
+            "unit": "%",
+            "target": "97",
+            "weight": "99"
+        },
+        {
+            "code": "KPI-CUS-10",
+            "measurement": "Avg resolve time",
+            "unit": "Hour",
+            "target": "24",
+            "weight": "12"
+        },
+        {
+            "code": "KPI-PRC-11",
+            "measurement": "Output baik \/ Total output ×",
+            "unit": "%",
+            "target": "98",
+            "weight": "99.5"
+        },
+        {
+            "code": "KPI-PRC-12",
+            "measurement": "Defect \/ Total Output",
+            "unit": "",
+            "target": "",
+            "weight": "30"
+        },
+        {
+            "code": "KPI-PRC-13",
+            "measurement": "Produksi \/ Kapasitas",
+            "unit": "%",
+            "target": "90",
+            "weight": "95"
+        },
+        {
+            "code": "KPI-PRC-14",
+            "measurement": "Energy Intensity Energi \/ Output",
+            "unit": "",
+            "target": "",
+            "weight": "9"
+        },
+        {
+            "code": "KPI-PRC-15",
+            "measurement": "Carbon Footprint Emisi CO2 total",
+            "unit": "",
+            "target": "",
+            "weight": ""
+        },
+        {
+            "code": "KPI-PRC-16",
+            "measurement": "Insiden Aktif \/ 1000 endpoint ratio 1.5",
+            "unit": "",
+            "target": "",
+            "weight": "0.5"
+        },
+        {
+            "code": "KPI-PRC-17",
+            "measurement": "Rata-rata MTTR",
+            "unit": "",
+            "target": "",
+            "weight": "4"
+        },
+        {
+            "code": "KPI-LNG-18",
+            "measurement": "Total jam training \/ pegawai",
+            "unit": "Hour",
+            "target": "48",
+            "weight": "60"
+        },
+        {
+            "code": "KPI-LNG-19",
+            "measurement": "Training Coverage Pegawai dilatih \/ Total",
+            "unit": "%",
+            "target": "95",
+            "weight": "100"
+        },
+        {
+            "code": "KPI-LNG-20",
+            "measurement": "% inovasi diadopsi",
+            "unit": "%",
+            "target": "50",
+            "weight": "70"
+        },
+        {
+            "code": "KPI-LNG-21",
+            "measurement": "Survey engagement",
+            "unit": "",
+            "target": "",
+            "weight": "85"
+        },
+        {
+            "code": "KPI-LNG-22",
+            "measurement": "Pegawai keluar \/ Total",
+            "unit": "%",
+            "target": "2.5",
+            "weight": "1.5"
+        },
+        {
+            "code": "KPI-GOV-23",
+            "measurement": "Penilaian agregat GCG",
+            "unit": "",
+            "target": "",
+            "weight": "92"
+        },
+        {
+            "code": "KPI-GOV-24",
+            "measurement": "Temuan selesai \/ total temuan %",
+            "unit": "",
+            "target": "90",
+            "weight": "98"
+        },
+        {
+            "code": "KPI-GOV-25",
+            "measurement": "Risiko termitigasi \/ total risiko %",
+            "unit": "",
+            "target": "85",
+            "weight": "95"
+        }
+    ],
+    "initiatives": [
+        {
+            "code": null,
+            "name": "IS-001 : Modernisasi Customer Portal Tahap II"
+        },
+        {
+            "code": null,
+            "name": "IS-002 : Transformasi Sistem Mutu"
+        },
+        {
+            "code": null,
+            "name": "IS-003 : Optimalisasi Single Note Inspection Tahap I"
+        },
+        {
+            "code": null,
+            "name": "IS-004 : Implementasi KLBI Fase Awal"
+        },
+        {
+            "code": null,
+            "name": "IS-005 : Pengembangan ISO 27001"
+        },
+        {
+            "code": null,
+            "name": "IS-006 : Audit Single Note Inspection"
+        },
+        {
+            "code": null,
+            "name": "IS-007 : Optimalisasi Data Warehouse Tahap I"
+        },
+        {
+            "code": null,
+            "name": "IS-008 : Implementasi Mobile Apps"
+        },
+        {
+            "code": null,
+            "name": "IS-009 : Audit Layanan Reimburse Berbasis AI"
+        },
+        {
+            "code": null,
+            "name": "IS-010 : Penyusunan Core Banking Tahap II"
+        },
+        {
+            "code": null,
+            "name": "IS-011 : Peningkatan Data Warehouse Hibrida"
+        },
+        {
+            "code": null,
+            "name": "IS-012 : Penyusunan Suplai Rendemen"
+        },
+        {
+            "code": null,
+            "name": "IS-013 : Modernisasi ISO 27001 Tahap I"
+        },
+        {
+            "code": null,
+            "name": "IS-014 : Pengembangan Core Banking"
+        },
+        {
+            "code": null,
+            "name": "IS-015 : Optimalisasi Cyber Security Hibrida"
+        },
+        {
+            "code": null,
+            "name": "IS-016 : Audit KLBI"
+        },
+        {
+            "code": null,
+            "name": "IS-017 : Audit Sistem Aset Tetap Tahap II"
+        },
+        {
+            "code": null,
+            "name": "IS-018 : Transformasi Perizinan Online Hibrida"
+        },
+        {
+            "code": null,
+            "name": "IS-019 : Optimalisasi AI Vision Inspection Berbasis AI"
+        },
+        {
+            "code": null,
+            "name": "IS-020 : Penyusunan Sistem Layanan Tahap II"
+        },
+        {
+            "code": null,
+            "name": "IS-021 : Implementasi ERP Core Berbasis AI"
+        },
+        {
+            "code": null,
+            "name": "IS-022 : Integrasi Sistem Aset Tetap End-to-End"
+        },
+        {
+            "code": null,
+            "name": "IS-023 : Digitasi AI Vision Inspection Hibrida"
+        },
+        {
+            "code": null,
+            "name": "IS-024 : Audit KLBI Tahap I"
+        },
+        {
+            "code": null,
+            "name": "IS-025 : Modernisasi Pakta Integritas Digital Hibrida"
+        },
+        {
+            "code": null,
+            "name": "IS-026 : Peningkatan Perizinan Online"
+        },
+        {
+            "code": null,
+            "name": "IS-027 : Implementasi Layanan Reimburse Tahap I"
+        },
+        {
+            "code": null,
+            "name": "IS-028 : Digitasi Network Operation Center Fase Awal"
+        },
+        {
+            "code": null,
+            "name": "IS-029 : Pengembangan AI Vision Inspection Hibrida"
+        },
+        {
+            "code": null,
+            "name": "IS-030 : Audit ERP Core Tahap I"
+        },
+        {
+            "code": null,
+            "name": "IS-031 : Pengembangan Suplai Rendemen"
+        },
+        {
+            "code": null,
+            "name": "IS-032 : Transformasi Data Warehouse Tahap II"
+        },
+        {
+            "code": null,
+            "name": "IS-033 : Peningkatan Network Operation Center Fase Awal"
+        },
+        {
+            "code": null,
+            "name": "IS-034 : Digitasi Sistem Mutu Hibrida"
+        },
+        {
+            "code": null,
+            "name": "IS-035 : Digitasi Customer Portal Fase Awal"
+        },
+        {
+            "code": null,
+            "name": "IS-036 : Audit Blockhain Traceability End-to-End"
+        },
+        {
+            "code": null,
+            "name": "IS-037 : Pengembangan Mobile Apps Tahap II"
+        },
+        {
+            "code": null,
+            "name": "IS-038 : Modernisasi Blockhain Traceability Tahap II"
+        },
+        {
+            "code": null,
+            "name": "IS-039 : Peningkatan Helpdesk ITSM Tahap I"
+        },
+        {
+            "code": null,
+            "name": "IS-040 : Optimalisasi Single Note Inspection Hibrida"
+        },
+        {
+            "code": null,
+            "name": "IS-041 : Pengembangan ISO 27001 Tahap I"
+        },
+        {
+            "code": null,
+            "name": "IS-042 : Digitasi Timbangan Logam Berbasis AI"
+        },
+        {
+            "code": null,
+            "name": "IS-043 : Modernisasi Data Warehouse Fase Awal"
+        },
+        {
+            "code": null,
+            "name": "IS-044 : Peningkatan ISO 27001 Hibrida"
+        },
+        {
+            "code": null,
+            "name": "IS-045 : Optimalisasi Layanan Reimburse Berbasis AI"
+        },
+        {
+            "code": null,
+            "name": "IS-046 : Integrasi ISO 27001 Skala Perusahaan"
+        },
+        {
+            "code": null,
+            "name": "IS-047 : Transformasi Blockhain Traceability"
+        },
+        {
+            "code": null,
+            "name": "IS-048 : Modernisasi Core Banking Fase Awal"
+        },
+        {
+            "code": null,
+            "name": "IS-049 : Modernisasi Blockhain Traceability Hibrida"
+        },
+        {
+            "code": null,
+            "name": "IS-050 : Peningkatan Sistem Pendukung Payroll Tahap I"
+        },
+        {
+            "code": null,
+            "name": "IS-051 : Peningkatan ISO 27001 Tahap I"
+        },
+        {
+            "code": null,
+            "name": "IS-052 : Pengembangan Blockhain Traceability End-to-End"
+        },
+        {
+            "code": null,
+            "name": "IS-053 : Modernisasi Sistem Layanan End-to-End"
+        },
+        {
+            "code": null,
+            "name": "IS-054 : Pengembangan Network Operation Center"
+        },
+        {
+            "code": null,
+            "name": "IS-055 : Audit Cyber Security Berbasis AI"
+        },
+        {
+            "code": null,
+            "name": "IS-056 : Penyusunan Helpdesk ITSM"
+        },
+        {
+            "code": null,
+            "name": "IS-057 : Peningkatan ISO 27001 Tahap II"
+        },
+        {
+            "code": null,
+            "name": "IS-058 : Integrasi Customer Portal Tahap II"
+        },
+        {
+            "code": null,
+            "name": "IS-059 : Audit Sistem Pendukung Payroll Berbasis AI"
+        },
+        {
+            "code": null,
+            "name": "IS-060 : Optimalisasi Helpdesk ITSM Fase Awal"
+        }
+    ],
+    "strategic_objectives": [
+        {
+            "code": "SS-01",
+            "name": "Modernisasi Proses Produksi",
+            "perspective": "Internal Process"
+        },
+        {
+            "code": "SS-02",
+            "name": "Diversifikasi Layanan Komersial",
+            "perspective": "Customer"
+        },
+        {
+            "code": "SS-03",
+            "name": "Penguatan Tata Kelola Digital",
+            "perspective": "Internal Process"
+        },
+        {
+            "code": "SS-04",
+            "name": "Peningkatan Profesionalisme SDM",
+            "perspective": "Learning"
+        },
+        {
+            "code": "SS-05",
+            "name": "Optimalisasi Struktur Biaya",
+            "perspective": "Financial"
+        },
+        {
+            "code": "SS-06",
+            "name": "Penguatan Cyber Security Posture",
+            "perspective": "Internal Process"
+        },
+        {
+            "code": "SS-07",
+            "name": "Sustainability & ESG",
+            "perspective": "Customer"
+        }
+    ],
+    "metrics": [
+        "Laba Bersih \/ Ekuitas × 100% %",
+        "Laba Bersih \/ Total Aset ×",
+        "Laba Bersih \/ Pendapatan ×",
+        "(Ending\/Starting)^(1\/5)-1",
+        "Customer",
+        "Aktiva Lancar \/ Utang Lancar ratio",
+        "Existing Customer \/ Total",
+        "New Logo \/ Total Customer %",
+        "On-Time \/ Total Delivery",
+        "Avg resolve time",
+        "Output baik \/ Total output ×",
+        "Defect \/ Total Output",
+        "Produksi \/ Kapasitas",
+        "Energy Intensity Energi \/ Output",
+        "Carbon Footprint Emisi CO2 total",
+        "Insiden Aktif \/ 1000 endpoint ratio 1.5",
+        "Rata-rata MTTR",
+        "Total jam training \/ pegawai",
+        "Training Coverage Pegawai dilatih \/ Total",
+        "% inovasi diadopsi",
+        "Survey engagement",
+        "Pegawai keluar \/ Total",
+        "Penilaian agregat GCG",
+        "Temuan selesai \/ total temuan %",
+        "Risiko termitigasi \/ total risiko %",
+        "%",
+        "Hour"
+    ],
+    "executive_summary": "Rencana Jangka Panjang Perusahaan (RJPP) PT PERURI (Persero) periode 2025-2029\nmerupakan dokumen perencanaan strategis lima tahunan yang menjadi landasan arah\npengembangan usaha sektor pengelolaan percetakan uang dan logam. Dokumen ini disusun\ndengan mempertimbangkan dinamika makroekonomi, perubahan regulasi, perkembangan\nteknologi, serta tantangan internal perusahaan.\nDalam periode 2025-2029, perusahaan menetapkan tiga pilar strategi utama: (i)\nModernisasi Proses Produksi, (ii) Diversifikasi Layanan, dan (iii) Penguatan Tata Kelola\nBerbasis Digital. Pilar-pilar tersebut diturunkan ke dalam tujuh sasaran strategis dengan\ndua puluh lima Indikator Kinerja Kunci (KPI) yang akan dipantau secara berkala.\nTotal kebutuhan investasi strategis untuk pencapaian RJPP periode ini diperkirakan\nsebesar Rp 2,4 triliun, didanai melalui laba ditahan, kerjasama strategis, dan pinjaman\njangka panjang. Estimasi tingkat pengembalian investasi agregat adalah 12,4% dengan\npayback period rata-rata 4,2 tahun.\nManajemen risiko periode 2025-2029 mengidentifikasi 47 risiko utama, dengan 8 risiko\nberada pada level ekstrem. Mitigasi prioritas diberikan pada risiko keamanan siber,\nketergantungan bahan baku, dan disrupsi rantai pasok.\nDokumen ini bersifat sintetis (DUMMY) dan dirancang untuk keperluan pengembangan\ndan pengujian sistem KPI Advisor. Seluruh data, angka, dan narasi bersifat fiktif namun\nmengikuti struktur standar dokumen RJPP BUMN.",
+    "error_message": null
+}

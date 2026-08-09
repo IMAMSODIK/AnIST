@@ -6,79 +6,90 @@ use App\Models\Initiative;
 use App\Models\Measurement;
 use Illuminate\Database\Seeder;
 
+/**
+ * Seeds the initiatives per OMTI 2026 KPI, lifted directly from the
+ * "Initiative" column of docs/traceability/Draft OMTI 2026.pdf. Initiatives
+ * are stored as plain strings because the AI prompt joins them into a list
+ * the model can match evidence against.
+ */
 class InitiativeSeeder extends Seeder
 {
     public function run(): void
     {
         $initiatives = [
-            'IT Investment Efficiency' => [
-                'Optimalisasi penggunaan cloud infrastructure',
-                'Konsolidasi lisensi software enterprise',
-                'Implementasi FinOps framework',
+            // #1 Penyelesaian Implementasi Sistem Aplikasi Upgrade/Baru —
+            // PDF lists 7 specific projects to deliver in 2026.
+            'Penyelesaian Implementasi Sistem Aplikasi Upgrade/Baru' => [
+                'Pengembangan Implementasi sistem terintegrasi yang berdampak pada peningkatan produktivitas/efisiensi atau yang berdampak pada kepuasan pelanggan secara berkelanjutan',
+                'Integrasi Mesin Timbangan Uang Logam (Produksi)',
+                'Sistem Layanan Reimburs Kesehatan (SDM)',
+                'Implementasi Pakta Integritas Digital (Risk Management)',
+                'Data Acqusition Single Note Inspection (Produksi)',
+                'Implementasi BAST Digital (Dafasum)',
+                'Pengembangan Sistem Pendukung Payroll - Time Management (SDM)',
+                'Upgrade Teknologi Platform OMTI (Corporate Strategy dan Performance)',
             ],
-            'IT Cost Reduction' => [
-                'Migrasi ke cloud-native architecture',
-                'Automasi proses operasional IT',
-                'Renegosiasi kontrak vendor',
+
+            // #2 Cybersecurity Incident — PDF initiative is one sentence.
+            'Cybersecurity Incident' => [
+                'Memastikan kelancaran operasional dengan meminimalkan gangguan yang disebabkan oleh insiden keamanan',
             ],
-            'System Availability' => [
-                'Implementasi High Availability cluster',
-                'Penyempurnaan disaster recovery plan',
-                'Monitoring proaktif dengan AIOps',
+
+            // #3 Pencapaian Project Management: Traceability — 5 PMO
+            // governance initiatives from PDF.
+            'Pencapaian Project Management: Traceability' => [
+                'Melakukan pemantauan dan pengendalian yang ketat terhadap pencapaian milestone Project Charter',
+                'Memitigasi risiko secara proaktif terhadap keterlambatan dokumen lifecycle proyek',
+                'Menetapkan peran dan tanggung jawab setiap anggota tim proyek',
+                'Optimalisasi sumber daya dan kompetensi dalam penyusunan Kajian, TOR, SPK, Implementasi, dan BAST',
+                'Membangun komunikasi yang rutin dan jelas antar anggota tim proyek (sprint/stand-up)',
             ],
-            'User Satisfaction Index' => [
-                'Peningkatan response time helpdesk',
-                'Implementasi self-service portal',
-                'User experience improvement program',
+
+            // #4 Percepatan proses pembayaran — sharing KPI; IT contribution
+            // is the SLA Network 98% dan Aplikasi 92%.
+            'Percepatan proses pembayaran (sharing KPI)' => [
+                'Ketersediaan Infrastruktur dan Aplikasi dengan pemenuhan SLA Network 98% dan Aplikasi sebesar 92%',
             ],
-            'Implementasi Sistem Digital' => [
-                'Implementasi Core Banking System',
-                'Digital Onboarding Platform',
-                'Mobile Banking Enhancement',
-                'API Gateway Implementation',
+
+            // #5 Realisasi Nilai Investasi — action plan pengajuan + evaluasi
+            // + klarifikasi teknis tepat waktu.
+            'Realisasi Nilai Investasi (KPI BP.BUMN)' => [
+                'Merealisasikan investasi pada tahun berjalan dengan action plan pengajuan investasi, evaluasi dan klarifikasi teknis tepat waktu',
             ],
-            'Cybersecurity Compliance Index' => [
-                'ISO 27001 Certification renewal',
-                'Penetration testing quarterly',
-                'Security awareness training program',
-                'SOC implementation dan monitoring',
+
+            // #7 EA 3-stage — overall + 3 tahap lifecycle split out per-stage.
+            'Pencapaian Project Management: Implementasi Enterprise Architecture guna Mendukung Pilar Security Solutions dan Pilar SPBE dalam Pemenuhan Strategic Initiative Digital Platform dan Technology Capabilities' => [
+                'Pelaksanaan project yang telah ditetapkan guna penyelarasan dan eksekusi strategi melalui implementasi Enterprise Architecture tahun 2026',
+                'Tahap Perencanaan (TOR, EE) = 25% sesuai timeline Project Charter',
+                'Tahap Development (SPK, FGD) = 80% sesuai timeline Project Charter',
+                'Tahap Implementasi (BAST) = 100% (Go Live) sesuai timeline Project Charter',
             ],
-            'Payment System Modernization' => [
-                'Implementasi Real-Time Gross Settlement',
-                'QR Payment integration',
-                'Cross-border payment gateway',
+
+            // #8 Jumlah proses supporting unit yang menggunakan AI — 3
+            // specific supporting-unit AI adoptions listed in PDF.
+            'Jumlah proses supporting unit yang menggunakan AI' => [
+                'Supporting AI pada proses atau program unit kerja disesuaikan dengan kebutuhan',
+                'Implementasi AI pada proses Mid Year Survey',
+                'Implementasi AI pada Proses Recruitment',
+                'Implementasi AI pada proses E-invoice',
             ],
-            'Enterprise Architecture Adoption Rate' => [
-                'EA framework documentation',
-                'Architecture review board establishment',
-                'Technology standards compliance audit',
-            ],
-            'Artificial Intelligence Implementation' => [
-                'AI-powered fraud detection system',
-                'Chatbot customer service',
-                'Predictive analytics for risk management',
-                'Document AI processing',
-            ],
-            'IT Certification Achievement' => [
-                'AWS/Azure/GCP certification program',
-                'CISSP/CISM certification sponsorship',
-                'Agile/Scrum certification program',
-            ],
-            'Innovation Index' => [
-                'Internal hackathon program',
-                'Innovation lab establishment',
-                'Technology exploration POC program',
+
+            // #9 IT Maturity Level — biennial assessment.
+            'IT Maturity Level (KPI BP BUMN)' => [
+                'Pelaksanaan asesmen IT Maturity Level (berlaku 2 tahun)',
             ],
         ];
 
         foreach ($initiatives as $measurementName => $initiativeList) {
             $measurement = Measurement::where('measurement', $measurementName)->first();
-            if (!$measurement) continue;
+            if (!$measurement) {
+                continue;
+            }
 
             foreach ($initiativeList as $initiative) {
                 Initiative::create([
                     'measurement_id' => $measurement->id,
-                    'initiative' => $initiative,
+                    'initiative'     => $initiative,
                 ]);
             }
         }

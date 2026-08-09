@@ -28,6 +28,9 @@ class AiResult extends Model
         'realisasi',
         'applications',
         'go_live_applications',
+        'sla_targets',
+        'investment_items',
+        'traceability_items',
         'analysis',
         'recommendation',
         'raw_json',
@@ -48,6 +51,9 @@ class AiResult extends Model
             'realisasi' => 'decimal:2',
             'applications' => 'array',
             'go_live_applications' => 'array',
+            'sla_targets' => 'array',
+            'investment_items' => 'array',
+            'traceability_items' => 'array',
             'raw_json' => 'array',
             'processing_time' => 'decimal:2',
         ];
@@ -143,5 +149,70 @@ class AiResult extends Model
         }
 
         return $isGoLive ? $this->applications_array : [];
+    }
+
+    /**
+     * Get the sla_targets field as an array of {name, uptime} objects.
+     */
+    public function getSlaTargetsArrayAttribute(): array
+    {
+        $sla = $this->sla_targets;
+
+        if (is_array($sla)) {
+            return $sla;
+        }
+
+        if (is_string($sla)) {
+            $decoded = json_decode($sla, true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return [];
+    }
+
+    /**
+     * Get the investment_items field as an array of {name, budget, realized,
+     * percentage, status} objects. Same defensive decoding pattern as the
+     * other array accessors.
+     */
+    public function getInvestmentItemsArrayAttribute(): array
+    {
+        $items = $this->investment_items;
+
+        if (is_array($items)) {
+            return $items;
+        }
+
+        if (is_string($items)) {
+            $decoded = json_decode($items, true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return [];
+    }
+
+    /**
+     * Get the traceability_items field as an array of
+     * {name, stage, achievement_pct} objects. Used by Project Management:
+     * Traceability KPI so the per-project lifecycle breakdown is preserved
+     * in the audit trail and aggregated by EvidenceService.
+     */
+    public function getTraceabilityItemsArrayAttribute(): array
+    {
+        $items = $this->traceability_items;
+
+        if (is_array($items)) {
+            return $items;
+        }
+
+        if (is_string($items)) {
+            $decoded = json_decode($items, true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return [];
     }
 }

@@ -181,6 +181,12 @@ class EvidenceService
         // valid ai_results for the period, instead of SUM(realisasi).
         if ($this->isImplementasiSistem($measurement)) {
             $totalRealisasi = $this->countUniqueApplications($measurementId, $quarter, $year);
+        } elseif ($this->isInvestmentRealisasi($measurement)) {
+            $totalRealisasi = $this->calculateInvestmentRealisasi($measurementId, $quarter, $year);
+        } elseif ($this->isProjectManagementTraceability($measurement)) {
+            $totalRealisasi = $this->calculateTraceabilityCoverage($measurementId, $quarter, $year);
+        } elseif ($this->isSlaAvailabilityMeasurement($measurement)) {
+            $totalRealisasi = $this->calculateSlaAvailabilityRealisasi($measurementId, $quarter, $year);
         } else {
             // Default: SUM realisasi dari semua AiResult yang valid untuk
             // measurement+quarter+year sehingga setiap upload evidence baru
@@ -220,7 +226,275 @@ class EvidenceService
         $name = strtolower($measurement->measurement ?? '');
 
         return str_contains($name, 'implementasi sistem')
-            || str_contains($name, 'system implementation');
+            || str_contains($name, 'system implementation')
+            // "Jumlah proses supporting unit yang menggunakan AI" (OMTI 2026
+            // #8) reuses the same count-of-unique-go-live-apps aggregation
+            // (each "application" is a supporting-unit process that has
+            // adopted AI). Keep this check in sync with the matching
+            // detection in PromptManager::getOutputFormat() so DB
+            // aggregation and the prompt format stay aligned.
+            || str_contains($name, 'supporting unit');
+    }
+
+    /**
+     * Determine whether the measurement is a Capex realization / Realisasi
+     * Nilai Investasi type, which aggregates investment line-items across
+     * evidence files to compute an overall weighted realization percentage.
+     */
+    protected function isInvestmentRealisasi($measurement): bool
+    {
+        if (!$measurement) {
+            return false;
+        }
+
+        $name = strtolower($measurement->measurement ?? '');
+        $definition = strtolower($measurement->definition ?? '');
+        $combined = $name . ' ' . $definition;
+
+        if (str_contains($combined, 'capex')) {
+            return true;
+        }
+
+        if (str_contains($combined, 'pengadaan')) {
+            return true;
+        }
+
+        if (str_contains($combined, 'rkap')) {
+            return true;
+        }
+
+        if (str_contains($name, 'realisasi') && str_contains($name, 'investasi')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Determine whether the measurement is an SLA / infrastructure
+     * availability KPI. Realisasi for these KPIs is a PERCENTAGE (mean
+     * uptime across monitored targets), so the period aggregator must
+     * AVERAGE — not SUM — the per-evidence realisasi values, otherwise
+     * multi-evidence periods (e.g. "Percepatan proses pembayaran" with one
+     * SLA Network report + one SLA Aplikasi report) would yield 200%.
+     *
+     * Detection mirrors PromptManager::getBasePrompt — it checks BOTH the
+     * measurement name and its definition, because some SLA KPIs (e.g.
+     * "Percepatan proses pembayaran (sharing KPI)") describe the SLA
+     * requirement inside the definition rather than the measurement title.
+     */
+    protected function isSlaAvailabilityMeasurement($measurement): bool
+    {
+        if (!$measurement) {
+            return false;
+        }
+
+        $name = strtolower($measurement->measurement ?? '');
+        $definition = strtolower($measurement->definition ?? '');
+
+        return $this->isSlaAvailabilityKeywords($name)
+            || $this->isSlaAvailabilityKeywords($definition);
+    }
+
+    /**
+     * Local keyword matcher kept in sync with PromptManager::isSlaAvailability
+     * so both layers route the same measurements to SLA handling.
+     */
+    protected function isSlaAvailabilityKeywords(string $haystack): bool
+    {
+        $keywords = ['sla', 'uptime', 'availability', 'ketersediaan', 'infrastruktur', 'infrastructure'];
+
+        foreach ($keywords as $kw) {
+            if (str_contains($haystack, $kw)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Compute the period SLA availability realisasi. Aggregation strategy:
+     *
+     *   1. For each valid ai_result in the period, the AI has already
+     *      returned a per-evidence realisasi = MEAN uptime across all
+     *      `sla_targets` it identified in that evidence file (computed in
+     *      PromptManager + validated by ResponseValidator). When
+     *      `sla_targets` is present we re-derive the mean from it (the
+     *      source of truth); otherwise we fall back to the ai_result's
+     *      `realisasi` column (legacy responses without the breakdown).
+     *
+     *   2. Period realisasi = AVERAGE of those per-evidence means, because
+     *      each evidence file is one component of the composite SLA
+     *      (e.g. SLA Network report = one number, SLA Aplikasi report =
+     *      another number). Summing them would breach 100% and produce
+     *      meaningless achievements.
+     *
+     *   3. If no valid evidence exists for the period, return 0.
+     */
+    protected function calculateSlaAvailabilityRealisasi(int $measurementId, string $quarter, int $year): float
+    {
+        $aiResults = AiResult::whereHas('upload', function ($q) use ($measurementId, $quarter, $year) {
+            $q->where('measurement_id', $measurementId)
+                ->where('quarter', $quarter)
+                ->where('year', $year);
+        })
+            ->where('evidence_valid', true)
+            ->get();
+
+        if ($aiResults->isEmpty()) {
+            return 0;
+        }
+
+        $perEvidenceMeans = [];
+
+        foreach ($aiResults as $result) {
+            // Prefer the per-target breakdown (source of truth — captures
+            // every monitored target the AI identified, not just the rounded
+            // mean it returned).
+            $targets = $result->sla_targets_array ?? [];
+
+            if (!empty($targets)) {
+                $uptimes = array_filter(
+                    array_map(function ($t) {
+                        return isset($t['uptime']) && is_numeric($t['uptime']) ? (float) $t['uptime'] : null;
+                    }, $targets),
+                    fn ($u) => $u !== null
+                );
+
+                if (!empty($uptimes)) {
+                    $perEvidenceMeans[] = round(array_sum($uptimes) / count($uptimes), 2);
+                    continue;
+                }
+            }
+
+            // Fallback: use the realisasi column directly (legacy or AI
+            // responses that did not include sla_targets but still produced
+            // a coherent mean uptime as realisasi).
+            $perEvidenceMeans[] = (float) ($result->realisasi ?? 0);
+        }
+
+        if (empty($perEvidenceMeans)) {
+            return 0;
+        }
+
+        return round(array_sum($perEvidenceMeans) / count($perEvidenceMeans), 2);
+    }
+
+    /**
+     * Determine whether the measurement is a "Pencapaian Project Management:
+     * Traceability" type, which aggregates per-project lifecycle stage
+     * progress across evidence files to compute an overall coverage
+     * percentage. Keyed on "project management" or "traceability" in the
+     * measurement name.
+     */
+    protected function isProjectManagementTraceability($measurement): bool
+    {
+        if (!$measurement) {
+            return false;
+        }
+
+        $name = strtolower($measurement->measurement ?? '');
+
+        return str_contains($name, 'project management')
+            || str_contains($name, 'traceability');
+    }
+
+    /**
+     * Compute the overall Project Management: Traceability coverage percentage
+     * for a measurement + period from all currently-valid ai_results.
+     *
+     * Each ai_result contributes one or more `traceability_items` entries
+     * {name, stage, achievement_pct}. Multiple evidence files for the SAME
+     * project (e.g. a Kajian + a TOR for the same project) are de-duplicated
+     * using the same token-based matching used for applications. For each
+     * unique project, the HIGHEST achievement_pct across its evidence files
+     * is kept (representing the latest lifecycle stage reached).
+     *
+     * The overall realisasi is the SIMPLE AVERAGE of the per-project max
+     * achievement_pct. Rationale: this rewards breadth AND depth — having
+     * one project at BAST (100) and another at Kajian (20) yields 60,
+     * reflecting partial program-wide coverage.
+     *
+     * Fallbacks:
+     *   - If no `traceability_items` exist in any evidence (e.g. legacy
+     *     responses without the field), use MAX(realisasi) across all
+     *     ai_results.
+     *   - If no valid evidence at all, return 0.
+     */
+    protected function calculateTraceabilityCoverage(int $measurementId, string $quarter, int $year): float
+    {
+        $aiResults = AiResult::whereHas('upload', function ($q) use ($measurementId, $quarter, $year) {
+            $q->where('measurement_id', $measurementId)
+                ->where('quarter', $quarter)
+                ->where('year', $year);
+        })
+            ->where('evidence_valid', true)
+            ->get();
+
+        // Each cluster is keyed by sorted distinctive-token set. We keep the
+        // entry with the HIGHEST achievement_pct for each unique project so
+        // that later lifecycle stages override earlier ones for the same
+        // project.
+        $clusters = [];
+
+        foreach ($aiResults as $result) {
+            $items = $result->traceability_items_array ?? [];
+
+            foreach ($items as $item) {
+                $name = $item['name'] ?? '';
+
+                if (trim($name) === '') {
+                    continue;
+                }
+
+                $tokens = $this->extractApplicationTokens($name);
+
+                if (empty($tokens['set'])) {
+                    continue;
+                }
+
+                $pct = isset($item['achievement_pct']) && is_numeric($item['achievement_pct'])
+                    ? (float) $item['achievement_pct']
+                    : 0;
+
+                $matchedKey = null;
+                foreach ($clusters as $key => $cluster) {
+                    if ($this->applicationTokensMatch($tokens, $cluster['tokens'])) {
+                        $matchedKey = $key;
+                        break;
+                    }
+                }
+
+                if ($matchedKey === null) {
+                    $clusters[$tokens['key']] = [
+                        'name' => $name,
+                        'stage' => $item['stage'] ?? '',
+                        'pct' => $pct,
+                        'tokens' => $tokens,
+                    ];
+                } else {
+                    // Merge: keep the entry with the HIGHEST achievement_pct
+                    // (latest lifecycle stage wins).
+                    if ($pct > $clusters[$matchedKey]['pct']) {
+                        $clusters[$matchedKey]['name'] = $name;
+                        $clusters[$matchedKey]['stage'] = $item['stage'] ?? '';
+                        $clusters[$matchedKey]['pct'] = $pct;
+                    }
+                }
+            }
+        }
+
+        // Fallback: no traceability_items in any evidence — use MAX(realisasi)
+        // from all ai_results (legacy responses without traceability_items).
+        if (empty($clusters)) {
+            $maxRealisasi = $aiResults->max('realisasi');
+            return (float) ($maxRealisasi ?? 0);
+        }
+
+        $perProjectMax = array_map(fn ($c) => $c['pct'], $clusters);
+
+        return round(array_sum($perProjectMax) / count($perProjectMax), 2);
     }
 
     /**
@@ -304,6 +578,111 @@ class EvidenceService
         }
 
         return (float) count($clusters);
+    }
+
+    /**
+     * Compute the overall Capex realization percentage for a measurement +
+     * period from all currently-valid ai_results.
+     *
+     * Collects all investment_items across all valid evidence, deduplicates
+     * them by canonical name (same token-based matching used for application
+     * deduplication), then computes:
+     *   - Primary: sum(realized) / sum(budget) × 100 (weighted by budget)
+     *   - Fallback: simple average of per-item percentages when no budget
+     *     data is available
+     *   - Last resort: MAX(realisasi) across all evidence (when no items at
+     *     all were extracted — e.g. legacy responses without investment_items)
+     */
+    protected function calculateInvestmentRealisasi(int $measurementId, string $quarter, int $year): float
+    {
+        $aiResults = AiResult::whereHas('upload', function ($q) use ($measurementId, $quarter, $year) {
+            $q->where('measurement_id', $measurementId)
+                ->where('quarter', $quarter)
+                ->where('year', $year);
+        })
+            ->where('evidence_valid', true)
+            ->get();
+
+        // Each cluster is keyed by sorted distinctive-token set. When the
+        // same investment item appears in multiple evidence files (e.g. a
+        // monitoring report + an individual SPK), we merge into a single
+        // cluster and keep the entry with the most complete budget data.
+        $clusters = [];
+
+        foreach ($aiResults as $result) {
+            $items = $result->investment_items_array ?? [];
+
+            foreach ($items as $item) {
+                $name = $item['name'] ?? '';
+
+                if (trim($name) === '') {
+                    continue;
+                }
+
+                $tokens = $this->extractApplicationTokens($name);
+
+                if (empty($tokens['set'])) {
+                    continue;
+                }
+
+                $matchedKey = null;
+                foreach ($clusters as $key => $cluster) {
+                    if ($this->applicationTokensMatch($tokens, $cluster['tokens'])) {
+                        $matchedKey = $key;
+                        break;
+                    }
+                }
+
+                if ($matchedKey === null) {
+                    $clusters[$tokens['key']] = [
+                        'item' => $item,
+                        'tokens' => $tokens,
+                    ];
+                } else {
+                    // Merge: keep the entry with the most complete budget data.
+                    $existing = $clusters[$matchedKey]['item'];
+                    $newBudget = $item['budget'] ?? 0;
+                    $existingBudget = $existing['budget'] ?? 0;
+
+                    if ($newBudget > $existingBudget) {
+                        $clusters[$matchedKey]['item'] = $item;
+                    } elseif ($newBudget === $existingBudget) {
+                        // Same budget — prefer the one with higher realized.
+                        $newRealized = $item['realized'] ?? 0;
+                        $existingRealized = $existing['realized'] ?? 0;
+                        if ($newRealized > $existingRealized) {
+                            $clusters[$matchedKey]['item'] = $item;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback: no investment_items in any evidence — use MAX(realisasi)
+        // from all ai_results (legacy responses without investment_items).
+        if (empty($clusters)) {
+            $maxRealisasi = $aiResults->max('realisasi');
+            return (float) ($maxRealisasi ?? 0);
+        }
+
+        $uniqueItems = array_map(fn ($c) => $c['item'], $clusters);
+
+        $totalBudget = array_sum(array_map(fn ($i) => $i['budget'] ?? 0, $uniqueItems));
+        $totalRealized = array_sum(array_map(fn ($i) => $i['realized'] ?? 0, $uniqueItems));
+
+        if ($totalBudget > 0) {
+            return round(($totalRealized / $totalBudget) * 100, 2);
+        }
+
+        // Fallback: simple average of per-item percentages when no budget
+        // data is available.
+        $percentages = array_filter(array_map(fn ($i) => $i['percentage'] ?? 0, $uniqueItems));
+
+        if (!empty($percentages)) {
+            return round(array_sum($percentages) / count($percentages), 2);
+        }
+
+        return 0;
     }
 
     /**

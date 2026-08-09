@@ -23,3 +23,17 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# Strategic Advisor melakukan ekstraksi PDF (~15s) + Gemini call (~30s)
+# secara sinkron. Naikkan PHP max_execution_time (mod_php) agar tidak
+# timeout di tengah jalan. Apache Timeout directive harus dinaikkan
+# terpisah di conf Apache (lihat catatan AGENTS.md / instruksi fix 500).
+<IfModule mod_php.c>
+    php_value max_execution_time 300
+</IfModule>
+<IfModule mod_php7.c>
+    php_value max_execution_time 300
+</IfModule>
+<IfModule mod_php8.c>
+    php_value max_execution_time 300
+</IfModule>

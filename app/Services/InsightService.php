@@ -220,6 +220,8 @@ class InsightService
             $recommendations = $r->recommendations_array;
             $applications = $r->applications_array;
             $goLiveApps = $r->go_live_applications_array;
+            $slaTargets = $r->sla_targets_array;
+            $investmentItems = $r->investment_items_array;
 
             $block = "### Evidence: {$fileName}";
             $block .= "\n- **Initiative**: {$initiative}";
@@ -232,6 +234,24 @@ class InsightService
                     return $app . ($isGoLive ? ' [Go Live]' : ' [UAT/Testing]');
                 }, $applications);
                 $block .= "\n- **Applications identified**: " . implode(', ', $labelled);
+            }
+
+            if (!empty($slaTargets)) {
+                $slaLines = array_map(function ($t) {
+                    return "{$t['name']}: {$t['uptime']}%";
+                }, $slaTargets);
+                $block .= "\n- **SLA Targets**: " . implode('; ', $slaLines);
+            }
+
+            if (!empty($investmentItems)) {
+                $invLines = array_map(function ($i) {
+                    $pct = $i['percentage'] ?? 0;
+                    $status = $i['status'] ?? '';
+                    $budget = $i['budget'] ?? 0;
+                    $realized = $i['realized'] ?? 0;
+                    return "{$i['name']} (budget: {$budget}, realized: {$realized}, {$pct}%, {$status})";
+                }, $investmentItems);
+                $block .= "\n- **Investment Items**: " . implode('; ', $invLines);
             }
 
             $block .= "\n- **Analysis**: {$r->analysis}";
