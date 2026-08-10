@@ -112,6 +112,22 @@ class DocumentExtractorService
                 array_column($kpis, 'unit'),
             ));
 
+            // Untuk dokumen sangat besar (>50 hal atau text > 50KB), bangun
+            // excerpt paling relevan via TF-IDF + cosine similarity. Excerpt
+            // ini menggantikan "executive summary" di prompt Strategic Advisor
+            // agar context yang dikirim ke Gemini tetap ringkas (~30000 char,
+            // ~7500 token) walau dokumen 1000+ halaman.
+            $relevantExcerpt = null;
+            $textLen = strlen($text);
+            if ($totalPages > 50 || $textLen > 50_000) {
+                $relevantExcerpt = $this->extractRelevantExcerpt($text, maxChars: 30000);
+                Log::debug('DocumentExtractor relevant excerpt', [
+                    'total_pages' => $totalPages,
+                    'text_len'    => $textLen,
+                    'excerpt_len' => strlen($relevantExcerpt ?? ''),
+                ]);
+            }
+
             return new DocumentExtractionDTO(
                 documentType: $documentType,
                 company: $company,
@@ -125,6 +141,7 @@ class DocumentExtractorService
                 strategicObjectives: $strategicObjectives,
                 metrics: array_values(array_filter($metrics)),
                 executiveSummary: $executiveSummary,
+                relevantExcerpt: $relevantExcerpt,
             );
         } catch (Throwable $e) {
             Log::error('DocumentExtractor error', [
@@ -147,6 +164,7 @@ class DocumentExtractorService
                 metrics: [],
                 executiveSummary: null,
                 errorMessage: $e->getMessage(),
+                relevantExcerpt: null,
             );
         }
     }
@@ -714,5 +732,182 @@ class DocumentExtractorService
     public function extractRawText(string $absPath): string
     {
         return $this->defragment($this->pdfToText($absPath));
+    }
+
+    /**
+     * Ekstrak excerpt paling relevan dari dokumen 1000+ halaman memakai
+     * TF-IDF + cosine similarity (pure PHP, tanpa API call, tanpa ekstensi).
+     *
+     * Strategi:
+     *  1. Pecah text -> paragraphs (split oleh blank line)
+     *  2. Tokenisasi (lowercase, alfanumerik, tf-idf weight)
+     *  3. Hitung IDF per term (ln(N / df))
+     *  4. Bangun TF-IDF vector per paragraph dan untuk query
+     *  5. Hitung cosine similarity query Vs tiap paragraph
+     *  6. Urutkan paragraph turun, ambil top-K hingga capai maxChars
+     *
+     * Kelebihan:
+     *  - Tidak butuh OpenAI/Gemini embedding (hemat biaya & request)
+     *  - Cepat (1000 paragraph ~ 0.5-1s di PHP murni)
+     *  - Hasil relevan dengan query strategis ("sasaran KPI inisiatif visi
+     *    misi tren strategis roadmap PTI arah")
+     *
+     * Dipakai StrategicAdvisorService saat dokumen sangat besar
+     * (totalPages > 50 atau text > 50KB).
+     */
+    public function extractRelevantExcerpt(
+        string $fullText,
+        int $maxChars = 30000,
+        ?string $query = null,
+    ): string {
+        $query ??= 'sasaran strategis KPI indikator kinerja inisiatif strategis visi misi tujuan jangka panjang tren strategis roadmap arah PTI master plan technology information';
+
+        // 1. Pecah ke paragraphs
+        $paragraphs = preg_split('/\n{2,}/', $fullText) ?: [];
+        // filter noise — skip paragraph <80 char (judul singkat / footer)
+        $paragraphs = array_values(array_filter($paragraphs, function ($p) {
+            $p = trim($p);
+            if (mb_strlen($p) < 80) return false;
+            // drop halaman-number-only / running headers
+            if (preg_match('/^\s*\d{1,4}\s*$/', $p)) return false;
+            return true;
+        }));
+        if (empty($paragraphs)) {
+            return Str::limit($fullText, $maxChars);
+        }
+        // cap n paragraphs supaya O(N*V) tidak meledak untuk dokumen 1000 hal
+        if (count($paragraphs) > 2000) {
+            // sample seragam untuk efisiensi
+            $step = ceil(count($paragraphs) / 2000);
+            $sampled = [];
+            for ($i = 0; $i < count($paragraphs); $i += $step) {
+                $sampled[] = $paragraphs[$i];
+            }
+            $paragraphs = $sampled;
+        }
+
+        // 2. Tokenisasi tiap paragraph
+        $tokenized = array_map(fn ($p) => $this->tokenize($p), $paragraphs);
+        $nDocs = count($tokenized);
+
+        // 3. Document frequency
+        $df = []; // term => # docs containing term
+        foreach ($tokenized as $tokens) {
+            $unique = array_unique($tokens);
+            foreach ($unique as $t) {
+                $df[$t] = ($df[$t] ?? 0) + 1;
+            }
+        }
+
+        // 4. IDF (smoothed)
+        $idf = [];
+        foreach ($df as $t => $count) {
+            $idf[$t] = log((1 + $nDocs) / (1 + $count)) + 1.0;
+        }
+
+        // 5. TF-IDF vector per dokumen (sparse map: term => weight)
+        $docVectors = [];
+        foreach ($tokenized as $tokens) {
+            $tf = array_count_values($tokens);
+            $vec = [];
+            $norm = 0.0;
+            foreach ($tf as $t => $f) {
+                $w = $f * ($idf[$t] ?? 0.0);
+                $vec[$t] = $w;
+                $norm += $w * $w;
+            }
+            $norm = sqrt($norm) ?: 1.0;
+            // normalize
+            foreach ($vec as $t => $w) {
+                $vec[$t] = $w / $norm;
+            }
+            $docVectors[] = $vec;
+        }
+
+        // 6. Query vector (sama: TF-IDF + normalize)
+        $qTokens = $this->tokenize($query);
+        $qTf = array_count_values($qTokens);
+        $qVec = [];
+        $qNorm = 0.0;
+        foreach ($qTf as $t => $f) {
+            $w = $f * ($idf[$t] ?? 0.0);
+            $qVec[$t] = $w;
+            $qNorm += $w * $w;
+        }
+        $qNorm = sqrt($qNorm) ?: 1.0;
+        foreach ($qVec as $t => $w) {
+            $qVec[$t] = $w / $qNorm;
+        }
+
+        // 7. Cosine similarity per paragraph
+        $scores = [];
+        foreach ($docVectors as $i => $vec) {
+            $score = 0.0;
+            // iterate smaller vector agar cepat
+            if (count($qVec) < count($vec)) {
+                foreach ($qVec as $t => $w) {
+                    if (isset($vec[$t])) $score += $w * $vec[$t];
+                }
+            } else {
+                foreach ($vec as $t => $w) {
+                    if (isset($qVec[$t])) $score += $w * $qVec[$t];
+                }
+            }
+            $scores[$i] = $score;
+        }
+
+        // 8. Sort descending by score, simpan index asli untuk pertahankan
+        // urutan dokumen (bucket oleh uniqueness konteks)
+        arsort($scores, SORT_NUMERIC);
+
+        // 9. Top-K hingga maxChars, tanpa duplikat konten mirip
+        $selectedIndices = [];
+        $totalChars = 0;
+        $seenSignatures = [];
+        foreach ($scores as $i => $score) {
+            if ($score <= 0.0) break;
+            $para = trim($paragraphs[$i]);
+            if ($para === '') continue;
+            // dedupe by signature (first 80 char lowercase) untuk drop boilerplate
+            $sig = mb_strtolower(mb_substr($para, 0, 80));
+            if (isset($seenSignatures[$sig])) continue;
+            $seenSignatures[$sig] = true;
+            $selectedIndices[$i] = $score;
+            $totalChars += mb_strlen($para) + 2;
+            if ($totalChars >= $maxChars) break;
+            if (count($selectedIndices) >= 30) break;
+        }
+        if (empty($selectedIndices)) {
+            return Str::limit($fullText, $maxChars);
+        }
+
+        // urutkan kembali selected indices ascending supaya pembaca alami (dok flow)
+        ksort($selectedIndices);
+        $out = [];
+        foreach ($selectedIndices as $i => $_) {
+            $out[] = $paragraphs[$i];
+        }
+        return implode("\n\n", $out);
+    }
+
+    /**
+     * Tokenizer sederhana (lowercase alfanumerik + underscore, min length 3).
+     * Didesain untuk dokumen Indonesia/Inggris mix tanpa stopwords removal
+     * (stopwords otomatis rendah-IDF di dokumen besar sehingga self-prune).
+     */
+    protected function tokenize(string $text): array
+    {
+        $text = mb_strtolower($text);
+        // split pada non-alfanumerik
+        $parts = preg_split('/[^a-z0-9]+/u', $text) ?: [];
+        $tokens = [];
+        foreach ($parts as $p) {
+            if ($p === '') continue;
+            if (mb_strlen($p) < 3) continue;
+            // skip angka murni (halaman jumlah)
+            if (preg_match('/^\d+$/', $p)) continue;
+            $tokens[] = $p;
+        }
+        return $tokens;
     }
 }

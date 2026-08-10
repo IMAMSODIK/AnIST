@@ -25,24 +25,32 @@ class DocumentExtractionDTO
         public readonly array $metrics,
         public readonly ?string $executiveSummary,
         public readonly ?string $errorMessage = null,
+        /**
+         * Untuk dokumen 1000+ halaman, full text tidak muat di context
+         * prompt Gemini. Field ini berisi excerpt paling relevan hasil
+         * ranking TF-IDF + cosine similarity terhadap query strategis
+         * ("sasaran KPI inisiatif visi misi tren strategis").
+         */
+        public readonly ?string $relevantExcerpt = null,
     ) {}
 
     public function toArray(): array
     {
         return [
-            'document_type' => $this->documentType,
-            'company' => $this->company,
-            'period' => $this->period,
-            'source_file' => $this->sourceFile,
-            'total_pages' => $this->totalPages,
-            'toc' => $this->toc,
-            'sections' => $this->sections,
-            'kpis' => $this->kpis,
-            'initiatives' => $this->initiatives,
+            'document_type'        => $this->documentType,
+            'company'              => $this->company,
+            'period'               => $this->period,
+            'source_file'          => $this->sourceFile,
+            'total_pages'          => $this->totalPages,
+            'toc'                  => $this->toc,
+            'sections'             => $this->sections,
+            'kpis'                 => $this->kpis,
+            'initiatives'          => $this->initiatives,
             'strategic_objectives' => $this->strategicObjectives,
-            'metrics' => $this->metrics,
-            'executive_summary' => $this->executiveSummary,
-            'error_message' => $this->errorMessage,
+            'metrics'              => $this->metrics,
+            'executive_summary'    => $this->executiveSummary,
+            'relevant_excerpt'    => $this->relevantExcerpt,
+            'error_message'        => $this->errorMessage,
         ];
     }
 

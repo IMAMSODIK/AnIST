@@ -75,10 +75,11 @@ class StrategicAdvisorService
         $absPath = Storage::disk('local')->path($storedPath);
 
         try {
-            // 1) Extract structure. Batasi 200 halaman pertama untuk menjaga
-            // waktu ekstraksi tetap di bawah ~15s — section strategis
-            // (visi/misi/KPI/inisiatif) lazim berada di bab awal dokumen.
-            $dto = $this->extractor->extract($absPath, maxPages: 200);
+            // 1) Extract structure. Tanpa limit halaman — TF-IDF + cosine similarity
+            // (di dalam extract()) akan otomatis menyaring excerpt paling relevan
+            // untuk dokumen 1000+ halaman. Ekstraksi ~20-40 detik untuk dokumen
+            // besar; masih di bawah set_time_limit(300).
+            $dto = $this->extractor->extract($absPath);
 
             $record->update([
                 'document_type' => $dto->documentType,
@@ -183,10 +184,14 @@ class StrategicAdvisorService
             'total_pages'         => $dto->totalPages,
             'toc'                 => $dto->toc,
             'kpis'                => $dto->kpis,
-            'initiatives'        => $dto->initiatives,
+            'initiatives'         => $dto->initiatives,
             'strategic_objectives'=> $dto->strategicObjectives,
             'metrics'             => $dto->metrics,
             'executive_summary'   => Str::limit($dto->executiveSummary ?? '', 1200),
+            // excerpt relevan (TF-IDF+cosine) untuk dokumen besar
+            'relevant_excerpt'    => $dto->relevantExcerpt
+                ? Str::limit($dto->relevantExcerpt, 8000)
+                : null,
             'error_message'       => $dto->errorMessage,
         ];
     }

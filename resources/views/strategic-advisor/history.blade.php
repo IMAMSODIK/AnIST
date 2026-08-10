@@ -63,7 +63,7 @@
                     @if($r->status === 'completed')Selesai
                     @elseif($r->status === 'processing')Memproses
                     @elseif($r->status === 'failed')Gagal
-                    @elsePending@endif
+                    @else Pending @endif
                 </span>
             </div>
         </a>

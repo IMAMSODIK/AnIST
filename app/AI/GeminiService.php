@@ -188,7 +188,7 @@ class GeminiService
      * external research) AND surface current internet trends.
      *
      * STRATEGY (rubust terhadap free-tier limitation):
-     *   1. Try call WITH `google_search_retrieval` tool (live grounding).
+     *   1. Try call WITH the model-compatible Google Search tool (live grounding).
      *   2. If that fails with HTTP 429/403 (free tier often disallows the
      *      grounding tool entirely — error: "limit: 0 generate_content_*"),
      *      automatically retry WITHOUT the tool. The model still produces
@@ -230,52 +230,61 @@ class GeminiService
             );
         }
 
-        // ---------- Attempt 1: WITH grounding ----------
-        $groundedResult = $this->callGenerateContent($prompt, useGrounding: true);
+        // ---------- Persistent cached flag: skip grounded entirely ----------
+        // Setelah grounded attempt pertama gagal dengan 429 (limit:0 permanen
+        // di banyak free-tier project), persist flag ini ke AppSetting cache
+        // 60s. Sehingga upload file ke-2 dst. TIDAK melakukan grounded attempt
+        // yg pasti sia-sia — langsung pakai plain mode, hemat 1 request/file
+        // + tidak membakar per-minute quota. Bila user upgrade tier & ingin
+        // re-enable grounding, Admin lupa cache lewat tombol di Settings.
+        $groundingDisabled = (bool) AppSetting::get('gemini_grounding_disabled', false);
 
-        if ($groundedResult['ok']) {
-            $groundedResult['processing_time'] = round(microtime(true) - $startTime, 2);
-            $groundedResult['grounded'] = true;
+        // ---------- Attempt 1: WITH grounding (skip jika flag aktif) ----------
+        if (! $groundingDisabled) {
+            $groundedResult = $this->callGenerateContent($prompt, useGrounding: true);
 
-            return $groundedResult;
-        }
+            if ($groundedResult['ok']) {
+                $groundedResult['processing_time'] = round(microtime(true) - $startTime, 2);
+                $groundedResult['grounded'] = true;
 
-        // ---------- Decision: fallback or surface error? ----------
-        // Fallback ONLY on errors that indicate the grounding tool itself is
-        // unavailable on this key/tier — NOT on transient 5xx or genuine
-        // quota-exhaustion of the regular text API (which would also fail
-        // without grounding, so no point retrying).
-        $groundErr  = $groundedResult['error'] ?? '';
-        $groundCode = $groundedResult['http_code'] ?? 0;
+                return $groundedResult;
+            }
 
-        $willFallbackQuota = $this->isGroundingUnavailableError($groundErr, $groundCode);
+            // ---------- Decision: fallback or surface error? ----------
+            $groundErr  = $groundedResult['error'] ?? '';
+            $groundCode = $groundedResult['http_code'] ?? 0;
 
-        // MALFORMED_FUNCTION_CALL dengan grounded mode bisa juga karena tool
-        // grounding + JSON kompleks terlalu berat. Treat sama: retry tanpa
-        // grounding.
-        $willFallbackMalformed = stripos($groundErr, 'MALFORMED_FUNCTION_CALL') !== false;
+            $willFallbackQuota     = $this->isGroundingUnavailableError($groundErr, $groundCode);
+            $willFallbackMalformed = stripos($groundErr, 'MALFORMED_FUNCTION_CALL') !== false;
 
-        Log::warning('Gemini grounded call failed; deciding fallback', [
-            'http_code'      => $groundCode,
-            'error'          => $groundErr,
-            'will_fallback'  => $willFallbackQuota || $willFallbackMalformed,
-        ]);
+            // Kalau penyebabnya quota grounding permanently unavailable,
+            // set persistent flag supaya call berikutnya skip grounded.
+            if ($willFallbackQuota) {
+                AppSetting::set('gemini_grounding_disabled', true);
+                Log::warning('Gemini grounding disabled (persistent) — free tier limit:0', []);
+            }
 
-        if (! $willFallbackQuota && ! $willFallbackMalformed) {
-            $groundedResult['processing_time'] = round(microtime(true) - $startTime, 2);
-            $groundedResult['grounded'] = false;
+            Log::warning('Gemini grounded call failed; deciding fallback', [
+                'http_code'      => $groundCode,
+                'error'          => $groundErr,
+                'will_fallback'  => $willFallbackQuota || $willFallbackMalformed,
+            ]);
 
-            return $groundedResult;
+            if (! $willFallbackQuota && ! $willFallbackMalformed) {
+                $groundedResult['processing_time'] = round(microtime(true) - $startTime, 2);
+                $groundedResult['grounded'] = false;
+
+                return $groundedResult;
+            }
+        } else {
+            Log::debug('Gemini grounded attempt skipped (persistent flag)', []);
         }
 
         // ---------- Attempt 2: WITHOUT grounding ----------
         $plainResult = $this->callGenerateContent($prompt, useGrounding: false);
 
-        // ---------- Attempt 3: bila non-grounded juga MALFORMED, retry lagi
-        // dengan mode "low complexity" — hapus tool grounding sama sekali
-        // dan disable tools yang bisa trigger function-calling path. Sudah
-        // dilakukan di Attempt 2, jadi di sini cuma coba sekali lagi dengan
-        // suhu rendah dan instruksi JSON ekstra tegas.
+        // ---------- Attempt 3: bila plain juga MALFORMED, retry sekali lagi
+        // (model 2.5+ kadang glitch pada first call).
         if (! $plainResult['ok'] && stripos($plainResult['error'] ?? '', 'MALFORMED_FUNCTION_CALL') !== false) {
             Log::warning('Gemini plain mode also MALFORMED — retrying once more', []);
             $plainResult = $this->callGenerateContent($prompt, useGrounding: false);
@@ -285,9 +294,10 @@ class GeminiService
         $plainResult['grounded']        = false;
         $plainResult['grounding']       = null;
 
-        // Annotate so caller/UI knows grounding was disabled due to quota.
         if ($plainResult['success']) {
-            $plainResult['fallback_reason'] = 'Grounding dinonaktifkan (tidak tersedia pada API key / quota tier). Tren berasal dari knowledge model, bukan live web.';
+            $plainResult['fallback_reason'] = $groundingDisabled
+                ? 'Grounding dinonaktifkan otomatis (API key Free Tier tanpa kuota search). Tren berasal dari knowledge model, bukan live web.'
+                : 'Grounding dinonaktifkan (tidak tersedia pada API key / quota tier). Tren berasal dari knowledge model, bukan live web.';
         }
 
         return $plainResult;
@@ -296,7 +306,17 @@ class GeminiService
     /**
      * Inner helper: single call to Gemini :generateContent. Returns a
      * normalized array used by analyzeWithSearch. Set $useGrounding=true to
-     * inject the google_search_retrieval tool.
+     * inject the model-compatible Google Search tool.
+     *
+     * Catatan kritikal untuk model gemini-2.5+/flash-latest:
+     *  - Saat $useGrounding=false, kita SET responseMimeType=application/json
+     *    dan toolConfig.functionCallingConfig.mode=NONE. Ini memaksa model
+     *    menghasilkan JSON murni tanpa mencoba "function call" (yang sering
+     *    dipicu pola `{}(...) {...}` di schema prompt dan memunculkan
+     *    finishReason=MALFORMED_FUNCTION_CALL).
+     *  - Saat $useGrounding=true, responseMimeType TIDAK boleh dipakai
+     *    (Gemini menolak kombinasi tools+structuredOutput), jadi kita andalkan
+     *    extractJson() untuk parse dari teks bebas.
      */
     protected function callGenerateContent(string $prompt, bool $useGrounding): array
     {
@@ -308,19 +328,43 @@ class GeminiService
                 'generationConfig' => [
                     'temperature' => 0.2,
                     'topP'        => 0.95,
+                    // Strategic Advisor meminta analisis multi-bagian dan
+                    // rationale rekomendasi yang lebih lengkap. Batas ini
+                    // mencegah respons berhenti sebelum JSON selesai.
+                    'maxOutputTokens' => 6000,
                 ],
             ];
 
             if ($useGrounding) {
-                // stdClass → empty object `{}` in JSON, required by spec.
+                // Gemini 2.5+/3.x use `google_search`; Gemini 2.0 uses the
+                // older `google_search_retrieval` name. Using the old alias
+                // with newer models can produce MALFORMED_FUNCTION_CALL.
+                $searchTool = preg_match('/^gemini-(?:2\.5|3)/i', $this->model)
+                    ? 'google_search'
+                    : 'google_search_retrieval';
                 $payload['tools'] = [
-                    ['google_search_retrieval' => new \stdClass()],
+                    [$searchTool => new \stdClass()],
+                ];
+            } else {
+                // Plain mode: paksa JSON murni + disable function calling agar
+                // model 2.5+ tidak assume schema prompt adalah function call.
+                $payload['generationConfig']['responseMimeType'] = 'application/json';
+                $payload['toolConfig'] = [
+                    'functionCallingConfig' => ['mode' => 'NONE'],
                 ];
             }
 
             $url = "{$this->baseUrl}/models/{$this->model}:generateContent";
 
-            $response = $this->sendWithRetry($url, $payload);
+            // Untuk Strategic Advisor: skip 429 retry pada BOTH grounded
+            // dan plain mode. Free-tier project sering punya limit:0 untuk
+            // Google Search grounding (grounded permanent 429). Sementara
+            // plain mode di-antrian dengan rate-limit 20 req/min yang sangat
+            // bursty — retry 5× dalam window sama hanya membakar quota lebih
+            // banyak dan membuat sliding window tidak pernah reset. User
+            // dapat pesan error cepat + lihat tombol Retry di UI untuk coba
+            // lagi setelah 60s.
+            $response = $this->sendWithRetry($url, $payload, skipRetryOn429: true);
 
             if (! $response->successful()) {
                 Log::error('Gemini API error', [
@@ -351,7 +395,9 @@ class GeminiService
             if (! $text) {
                 $reason = $finish ?? 'UNKNOWN';
                 $hint = match ($reason) {
-                    'MALFORMED_FUNCTION_CALL' => 'Model gagal menyusun JSON dalam batas token. Sederhanakan prompt / coba lagi.',
+                    'MALFORMED_FUNCTION_CALL' => $useGrounding
+                        ? 'Model gagal menjalankan Google Search grounding. Sistem akan mencoba analisis tanpa grounding.'
+                        : 'Model gagal menyusun JSON. Coba lagi dengan prompt yang lebih ringkas.',
                     'SAFETY',                  => 'Prompt ditolak oleh safety filter. Tinjau konten dokumen.',
                     'RECITATION',              => 'Respons dihentikan karena recitation (kutipan terlalu mirip sumber).',
                     'MAX_TOKENS',               => 'Batas token tercapai sebelum JSON lengkap. Kurangi panjang prompt.',
@@ -425,7 +471,10 @@ class GeminiService
      */
     protected function isGroundingUnavailableError(string $msg, int $httpCode): bool
     {
-        return in_array($httpCode, [429, 403], true);
+        // 400/404 is also possible when a model does not support the
+        // configured grounding tool. Plain analysis is still a valid fallback
+        // in that case, so do not fail the whole Strategic Advisor upload.
+        return in_array($httpCode, [400, 403, 404, 429], true);
     }
 
     /** Convenience wrapper to build a failure return-shape consistently. */
@@ -451,8 +500,16 @@ class GeminiService
      * reset instead of hammering the API with short exponential backoff that
      * always re-hits 429. The wait is capped by `rate_limit_max_wait_sec` so
      * the queue worker does not stall indefinitely on a misbehaving endpoint.
+     *
+     * @param bool $skipRetryOn429  Bila true, 429 langsung di-return tanpa
+     *                             retry. Dipakai untuk grounded call (yang
+     *                             punya limit:0 permanen di free tier) supaya
+     *                             tidak membakar per-minute quota text-gen
+     *                             untuk hal yang pasti gagal. Fallback non-
+     *                             grounded yang dilakukan setelahnya masih
+     *                             punya peluang sukses karena quota-nya utuh.
      */
-    protected function sendWithRetry(string $url, array $payload): \Illuminate\Http\Client\Response
+    protected function sendWithRetry(string $url, array $payload, bool $skipRetryOn429 = false): \Illuminate\Http\Client\Response
     {
         $attempt = 0;
         $lastException = null;
@@ -479,6 +536,11 @@ class GeminiService
 
                 // Don't retry on 4xx client errors (except 429 rate limit)
                 if ($response->successful() || ($response->clientError() && $response->status() !== 429)) {
+                    return $response;
+                }
+
+                // 429 yang disapu cepat bila diminta (grounded mode limit:0).
+                if ($response->status() === 429 && $skipRetryOn429) {
                     return $response;
                 }
 
@@ -672,6 +734,28 @@ class GeminiService
             $gMessage = $decoded['error']['message'] ?? null;
         }
 
+        // Deteksi apakah quota yang habis adalah per-DAY atau per-MINUTE.
+        // Gemini menyertakan quotaId di details.QuotaFailure.violations.
+        $quotaKind = 'unknown';
+        if (is_array($decoded) && isset($decoded['error']['details'])) {
+            foreach ($decoded['error']['details'] as $d) {
+                if (($d['@type'] ?? '') === 'type.googleapis.com/google.rpc.QuotaFailure'
+                    && isset($d['violations'])) {
+                    foreach ($d['violations'] as $v) {
+                        $qid = $v['quotaId'] ?? '';
+                        if (stripos($qid, 'PerDay') !== false) {
+                            $quotaKind = 'day';
+                            break 2;
+                        }
+                        if (stripos($qid, 'PerMinute') !== false) {
+                            $quotaKind = 'minute';
+                            break 2;
+                        }
+                    }
+                }
+            }
+        }
+
         return match ($status) {
             401 => 'API key tidak valid atau sudah kedaluwarsa. Generate ulang API key di Google AI Studio (format AIza...). Jika key sudah benar, periksa GEMINI_MODEL di .env — model \''. $this->model . '\' mungkin tidak tersedia di tier/key Anda.',
             403 => match ($gStatus) {
@@ -679,7 +763,11 @@ class GeminiService
                 default => 'Gemini API menolak akses (HTTP 403). Periksa kembali API key, project Google Cloud, dan apakah API "Generative Language API" sudah di-enabled.',
             },
             404 => "Model '{$this->model}' tidak ditemukan (HTTP 404). Periksa GEMINI_MODEL di .env — gunakan model yang valid seperti 'gemini-2.5-flash' atau 'gemini-2.0-flash'.",
-            429 => 'Kuota Gemini free tier habis (limit 20 request/menit). Tunggu ±1 menit lalu upload ulang, atau upgrade ke paid tier. (Model terpakai: \'' . $this->model . '\'.)',
+            429 => match ($quotaKind) {
+                'day'   => 'Kuota harian Gemini Free Tier HABIS untuk key/project ini (limit '. $this->model . ': 20 request/hari). Coba lagi besok, atau: (a) buat project baru di Google AI Studio + API key baru, atau (b) upgrade ke paid tier (enable billing di Google Cloud).',
+                'minute'=> 'Kuota per-menit Gemini Free Tier habis (20 req/min). Tunggu ±60 detik lalu upload ulang. (Model: \'' . $this->model . '\'.)',
+                default => 'Kuota Gemini free tier habis. Tunggu beberapa menit lalu upload ulang, atau upgrade ke paid tier. (Model: \'' . $this->model . '\'.)',
+            },
             500, 502, 503 => 'Server Gemini sedang bermasalah (HTTP ' . $status . '). Coba lagi beberapa saat.',
             default => 'Gemini API error (HTTP ' . $status . '): ' . ($gMessage ?? substr($body, 0, 200)),
         };

@@ -56,6 +56,13 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* Stable modal backdrop independent of Tailwind opacity utilities. */
+.modal-backdrop {
+    background-color: rgba(15, 23, 42, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
 /* Smooth transitions */
 .sidebar-transition {
     transition: width 0.3s ease, transform 0.3s ease;

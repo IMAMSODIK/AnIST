@@ -249,7 +249,7 @@ PROMPT;
      *   3. Surface current internet trends relevant to the document's domain.
      *
      * The text-only prompt is sent without `responseMimeType: application/json`
-     * because google_search_retrieval is incompatible with structured-output
+     * because Google Search grounding is incompatible with structured-output
      * mode. The prompt therefore ORDER the model to emit pure JSON; the
      * service parses it out of the resulting text via `extractJson()`.
      */
@@ -259,7 +259,17 @@ PROMPT;
         $company      = $dto->company ?: 'tidak terdeteksi';
         $period       = $dto->period ?: 'tidak terdeteksi';
         $totalPages   = $dto->totalPages > 0 ? (string) $dto->totalPages : 'tidak diketahui';
-        $execSummary  = $dto->executiveSummary ?: '(ringkasan eksekutif tidak dapat diekstrak)';
+        // Untuk dokumen kecil/medium, pakai executive summary yang sudah
+        // diekstrak via section-aware heuristic. Untuk dokumen 1000+ halaman,
+        // DocumentExtractorService sudah bangun relevantExcerpt via TF-IDF +
+        // cosine similarity — excerpt ini jauh lebih informatif daripada ring-
+        // kas an eksekutif, dan tetap ringkas (~30000 char / ~7500 token).
+        $execSummary  = $dto->relevantExcerpt
+            ?: ($dto->executiveSummary ?: '(ringkasan eksekutif tidak dapat diekstrak)');
+        // Beri label kontekstual supaya AI tahu sumbernya
+        $execSummaryLabel = $dto->relevantExcerpt
+            ? '### Cuplikan Konten Paling Relevan (auto-ranked via TF-IDF + cosine similarity —约 30段 paling relevan terhadap query strategis)'
+            : '### Ringkasan Eksekutif';
 
         // Cap list size supaya prompt tidak bengkak pada dokumen besar (RJPP bisa
         // punya 100+ initiative). AI tidak butuh seluruh list — cukup sample
@@ -282,6 +292,8 @@ PROMPT;
         $soCount        = count($dto->strategicObjectives);
         $kpiCount       = count($dto->kpis);
         $initiativeCnt  = count($dto->initiatives);
+        $kpiLabel       = $kpiCount > 15 ? "menampilkan 15 teratas sebagai sample" : "semua ditampilkan";
+        $initLabel      = $initiativeCnt > 20 ? "menampilkan 20 teratas sebagai sample" : "semua ditampilkan";
 
         return <<<PROMPT
 Anda adalah Senior Strategic Advisor AI untuk BUMN Indonesia, spesialis pada perencanaan strategis jangka panjang (RJPP) dan master plan teknologi informasi (MPTI). Anda memiliki akses ke:
@@ -295,36 +307,65 @@ Anda adalah Senior Strategic Advisor AI untuk BUMN Indonesia, spesialis pada per
 - **Jumlah halaman**: {$totalPages}
 - **File sumber**: {$dto->sourceFile}
 
-### Ringkasan Eksekutif
+{$execSummaryLabel}
 {$execSummary}
 
 ### Sasaran Strategis Terdeteksi ({$soCount} item)
 {$soList}
 
-### KPI Terdeteksi ({$kpiCount} item)
+### KPI Terdeteksi ({$kpiCount} total — {$kpiLabel})
 {$kpiList}
 
-### Inisiatif Strategis Terdeteksi ({$initiativeCnt} item)
+### Inisiatif Strategis Terdeteksi ({$initiativeCnt} total — {$initLabel})
 {$initiativeList}
 {$errorBlock}
 
 ## Tugas Anda
-1. **Analysis** — Analisis kritis dokumen ini dalam 2-3 paragraf naratif. Bahas:
-   - Kekuatan struktur strategisnya (alignment visi→sasaran→KPI→inisiatif).
-   - Gap / kelemahan yang mencolok (mis. perspective BSC yang under-represented, KPI ambigious, formula tidak konsisten, inisiatif yang tidak terhubung ke KPI manapun).
-   - Konsistensi dengan praktik RJPP/MPTI BUMN Indonesia pada umumnya.
+    1. **Analysis** — Tulis analisis mendalam dalam 7 bagian yang jelas di dalam
+       string `analysis` (gunakan judul bagian dan baris baru). Panjang target
+       900-1400 kata, bukan ringkasan 2-3 paragraf. Bahas seluruh area berikut:
+       - Penilaian eksekutif: kesimpulan utama, tingkat kesiapan strategi, dan
+         3 temuan paling material.
+       - Arsitektur strategi: konsistensi visi, misi, tujuan, sasaran strategis,
+         KPI, target, bobot, dan inisiatif.
+       - Kualitas KPI dan pengukuran: kelengkapan definisi, formula, unit,
+         target, ownership, baseline, serta risiko KPI tidak dapat diaudit.
+       - Portofolio inisiatif dan eksekusi: keterhubungan inisiatif ke sasaran,
+         duplikasi, prioritas, dependensi, kapasitas, pendanaan, dan roadmap.
+       - Perspektif BSC dan operating model: Financial, Customer, Internal
+         Process, Learning & Growth, tata kelola, SDM, data, dan teknologi.
+       - Risiko dan gap: pisahkan fakta yang terlihat dari dokumen, inferensi
+         yang masuk akal, dan hal yang tidak dapat dinilai karena data tidak ada.
+       - Benchmark dan outlook: bandingkan secara kualitatif dengan praktik
+         RJPP/MPTI BUMN yang baik serta jelaskan implikasi 2025-2029.
+       Setiap bagian wajib menyebutkan bukti atau elemen dokumen yang menjadi
+       dasar. Jangan mengisi kekosongan data dengan asumsi seolah-olah fakta.
 
-2. **Recommendations** — Berikan 4-8 rekomendasi strategis konkret. Setiap rekomendasi WAJIB grounded pada apa yang ADA di dokumen ATAU apa yang MISSING tapi lazim ada pada RJPP/MPTI best-in-class BUMN sebanding. Untuk setiap rekomendasi, sertakan:
-   - `title` (ringkas, action-oriented)
-   - `rationale` (1-2 kalimat, mengaitkan ke dokumen atau best-practice)
-   - `priority` ("high" | "medium" | "low")
-   - `suggested_perspective` (perspective BSC yang relevan: "Financial", "Customer", "Internal Process", atau "Learning & Growth")
-   - `suggested_initiative` (saran nama inisiatif konkret yang bisa diadopsi, jangan generik)
+    2. **Recommendations** — Berikan 8-12 rekomendasi strategis konkret dan
+       berurutan berdasarkan prioritas. Setiap rekomendasi WAJIB grounded pada
+       elemen yang ADA di dokumen ATAU gap yang MISSING tetapi lazim pada
+       RJPP/MPTI best-in-class BUMN sebanding. `rationale` harus 3-4 kalimat
+       dan mencakup: bukti/gap yang mendasari, dampak bisnis atau risiko,
+       tindakan 90 hari pertama, serta hasil yang diharapkan. Sertakan:
+       - `title` (ringkas dan action-oriented)
+       - `rationale` (3-4 kalimat, spesifik dan dapat dieksekusi)
+       - `priority` ("high" | "medium" | "low")
+       - `suggested_perspective` ("Financial" | "Customer" | "Internal Process" | "Learning & Growth")
+       - `suggested_initiative` (nama program konkret, owner/domain dan scope jelas)
 
-3. **Popular Trends** — Berikan 3-6 tren terkini yang relevan dengan domain dokumen tersebut (mis. AI, cybersecurity, ESG, digital banking, payment, regulatory compliance, Industry 4.0, sustainability reporting). JIKA Anda memiliki akses live web (Google Search grounding aktif), MANFAATKAN itu untuk MENGUTIP perkembangan nyata terkini (regulasi, laporan industri, luncuran produk). JIKA TIDAK (mode non-grounded), gunakan knowledge dari training cut-off Anda dan tambahkan disclaimer singkat pada `source_hint`: "estimasi berdasarkan knowledge cutoff, bukan live web". Jangan mengarang angka/tanggal. Untuk setiap trend:
-   - `trend` (nama tren, ringkas)
-   - `relevance_to_document` (1 kalimat: kenapa tren ini penting bagi dokumen/perusahaan ini)
-   - `source_hint` (sumber atau kata kunci pencarian, mis. "OJK regulasi AI 2025", "Gartner Hype Cycle 2025", atau nama publikasi — HINDARI URL palsu)
+    3. **Popular Trends** — Berikan 6-8 tren terkini yang relevan dengan domain
+       dokumen (mis. AI, cybersecurity, ESG, digital trust, Industry 4.0,
+       regulatory compliance, data governance, sustainability reporting).
+       Jelaskan mengapa setiap tren relevan terhadap sasaran atau inisiatif
+       tertentu dalam dokumen dan apa implikasinya bagi roadmap perusahaan.
+       JIKA memiliki akses live web, gunakan perkembangan nyata terkini.
+       JIKA mode non-grounded, gunakan knowledge cutoff dan tulis disclaimer
+       "estimasi berdasarkan knowledge cutoff, bukan live web" pada `source_hint`.
+       Jangan mengarang angka, tanggal, nama regulasi, atau URL. Untuk setiap
+       trend sertakan:
+       - `trend` (nama tren, ringkas)
+       - `relevance_to_document` (2-3 kalimat)
+       - `source_hint` (sumber atau kata kunci pencarian, bukan URL palsu)
 
 ## Aturan Ketat
 - Dilarang mengarang angka / tanggal / nama yang tidak ada di dokumen.
@@ -332,10 +373,13 @@ Anda adalah Senior Strategic Advisor AI untuk BUMN Indonesia, spesialis pada per
 - Hindari platitude generik ("tingkatkan performa", "lakukan monitoring"). Tiap rekomendasi harus spesifik dan actionable.
 - Untuk tren: jika live grounding tersedia, kutip perkembangan nyata. Jika tidak, gunakan knowledge cutoff dan beri disclaimer di `source_hint` ("estimasi berdasarkan knowledge cutoff").
 - Output WAJIB berupa satu JSON object VALID, tanpa pembungkus markdown ` ```json ` dan tanpa teks tambahan di luar JSON.
+- Prioritaskan kedalaman dan bukti dokumen, bukan pengulangan kalimat generik.
+- Jika informasi tidak tersedia, tulis "data tidak tersedia dalam ekstraksi" dan
+  jelaskan konsekuensi analitisnya; jangan mengarang.
 
 ## Format Output
 {
-  "analysis": "string 2-3 paragraf",
+  "analysis": "string panjang dengan 7 bagian berjudul, sekitar 900-1400 kata",
   "recommendations": [
     {
       "title": "",
