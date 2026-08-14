@@ -19,6 +19,7 @@ class AiResultDTO
         public readonly array $slaTargets = [],
         public readonly array $investmentItems = [],
         public readonly array $traceabilityItems = [],
+        public readonly array $rstiItems = [],
     ) {}
 
     public static function fromAiResponse(array $data, array $response): self
@@ -37,6 +38,7 @@ class AiResultDTO
             slaTargets: $data['sla_targets'] ?? [],
             investmentItems: $data['investment_items'] ?? [],
             traceabilityItems: $data['traceability_items'] ?? [],
+            rstiItems: $data['rsti_items'] ?? [],
         );
     }
 
@@ -61,6 +63,7 @@ class AiResultDTO
             slaTargets: [],
             investmentItems: [],
             traceabilityItems: [],
+            rstiItems: [],
         );
     }
 
@@ -76,6 +79,7 @@ class AiResultDTO
             'sla_targets' => $this->slaTargets,
             'investment_items' => $this->investmentItems,
             'traceability_items' => $this->traceabilityItems,
+            'rsti_items' => $this->rstiItems,
             'analysis' => $this->analysis,
             'recommendation' => json_encode($this->recommendations),
             'raw_json' => $this->rawJson,

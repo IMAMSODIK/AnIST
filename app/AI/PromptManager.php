@@ -470,6 +470,51 @@ PROMPT;
         $name = strtolower($measurement->measurement ?? '');
         $definition = strtolower($measurement->definition ?? '');
 
+        // Implementasi Inisiatif RSTI (OMTI 2026 Divisi TI #3). Must be
+        // checked BEFORE the generic branches so the roadmap-execution
+        // guidance applies instead of a generic hint.
+        if ($this->isRsti($name) || $this->isRsti($definition)) {
+            return <<<'HINT'
+## Recommendation Domain Hint — RSTI Roadmap Execution
+For Implementasi Inisiatif RSTI KPIs (realisasi = count of registered roadmap
+initiatives with status "Selesai"), recommendations should draw from these
+concrete categories (pick those that ACTUALLY fit the situation, skip those
+that don't):
+
+**Execution Acceleration (if initiatives are In Progress / Belum Berjalan):**
+- Push initiative [kode] yang masih In Progress ke Selesai sebelum akhir Q
+  (target BAST/go-live ≤ akhir triwulan berjalan)
+- Identifikasi blocker teknis/procurement per initiative (SPK, vendor,
+  infrastruktur) dengan owner + due date (SLA resolusi ≤ 14 hari)
+- Eskalasi ke sponsor RSTI untuk initiative dengan slippage > 30 hari dari
+  jadwal roadmap
+
+**Schedule / Roadmap Alignment:**
+- Review jadwal roadmap per initiative against target OMTI tahunan — initiative
+  yang selesai lebih awal dari jadwal tetap dihitung; yang terlambat perlu
+  catch-up plan
+- Re-baseline roadmap untuk initiative "Drop" bersama Dep. Perencanaan dan
+  Arsitektur TI (target revisi ≤ 30 hari)
+- Monthly checkpoint dengan pelaksana initiative (Dep. Pengembangan TI /
+  Operasional TI / Perencanaan TI)
+
+**Portfolio Governance:**
+- Pastikan laporan monitoring MPTI triwulanan memuat status SETIAP registered
+  initiative (target 100% ter-cover, tidak ada "Tidak Ditemukan")
+- Standardisasi penamaan + kode roadmap initiative antara OMTI dan Master Plan
+  TI agar matching tidak ambigu
+- Risk register per initiative dengan mitigasi untuk dependency antar-
+  initiative (e.g. SIEM bergantung pada infrastruktur log yang tersedia)
+
+**Benefits Realization (if initiatives are Selesai):**
+- Post-implementation review 90 hari pasca Selesai (target manfaat sesuai
+  business case RSTI tercapai)
+- Ukur adoption/utilisasi teknologi yang diimplementasi (target ≥ 80% dalam
+  60 hari)
+- Dokumentasi lesson learned untuk batch initiative RSTI berikutnya
+HINT;
+        }
+
         // Implementasi Sistem / System Implementation
         if (str_contains($name, 'implementasi sistem') || str_contains($name, 'system implementation') || str_contains($name, 'aplikasi')) {
             return <<<'HINT'
@@ -500,6 +545,48 @@ categories (pick those that fit the situation, skip those that don't):
 - Post-implementation review (PIR) 90 hari pasca Go-Live
 - Dokumentasi lesson learned untuk proyek implementasi berikutnya
 - Update knowledge base / runbook operasional
+HINT;
+        }
+
+        // Pemenuhan Sertifikasi Internasional ISO 27001 (OMTI 2026 Divisi TI
+        // #4). Must be checked BEFORE the cybersecurity branches because the
+        // ISO/ISMS wording contains "keamanan".
+        if ($this->isIsoCertification($name) || $this->isIsoCertification($definition)) {
+            return <<<'HINT'
+## Recommendation Domain Hint — ISO 27001 Certification Fulfillment
+For ISO 27001 certification KPIs (realisasi = fulfillment %: 40 persiapan /
+80 pelaksanaan / 100 lulus audit), recommendations should draw from these
+concrete categories (pick those that ACTUALLY fit the situation, skip those
+that don't):
+
+**Pelaksanaan Acceleration (if still at persiapan/pelaksanaan):**
+- Finalisasi pengadaan konsultan pendamping audit (target kontrak/SPK terbit
+  ≤ 30 hari dari permohonan)
+- Gap analysis ISO/IEC 27001:2022 terhadap Statement of Applicability (SoA)
+  — target seluruh control Annex A ter-mapping 100%
+- Penutupan non-conformance (NC) internal audit terbuka (target major NC = 0,
+  minor NC tuntas ≤ 30 hari sebelum surveillance audit)
+- Manajemen review + internal audit lengkap minimal 1 cycle sebelum audit
+  (target selesai ≤ 60 hari sebelum jadwal surveillance)
+
+**Audit Readiness (if pelaksanaan nearly complete):**
+- Mock audit / pre-assessment dengan konsultan pendamping (target 0 major
+  finding sebelum audit resmi)
+- kompilasi evidence per clause & kontrol (target 100% kontrol punya evidence
+  terkurasi, siap ditunjukkan saat audit)
+- Briefing auditor internal & PIC tiap departemen (target 100% PIC brief
+  ≤ 14 hari sebelum audit)
+
+**Post-Audit / Maintain (if audit passed / certificate issued):**
+- Remediasi temuan surveillance audit (target minor NC closed ≤ 60 hari)
+- Kalibrasi SoA & risk assessment tahunan berikutnya (due ≤ 90 hari)
+- Continuous monitoring ISMS KPI (target review bulanan: incident, risk
+  register, control effectiveness)
+
+**Governance:**
+- Jadwal surveillance audit tahun berikutnya dikunci dengan sertifikasi
+  body (target kontrak ≤ 6 bulan sebelum jatuh tempo)
+- Dokumentasi ISMS selalu audit-ready (repository tunggal, review kuartalan)
 HINT;
         }
 
@@ -775,8 +862,26 @@ HINT;
         // still route to the correct prompt.
         $definition = strtolower($measurement->definition ?? '');
 
+        // Implementasi Inisiatif RSTI (OMTI 2026 Divisi TI #3). Must be
+        // checked BEFORE every other branch: the evidence is a quarterly
+        // RSTI / Master Plan TI monitoring report and the business rule
+        // (count of registered initiatives with status "Selesai") is
+        // completely different from the generic completion prompts.
+        if ($this->isRsti($name) || $this->isRsti($definition)) {
+            return $this->getRstiPrompt();
+        }
+
         if (str_contains($name, 'implementasi sistem') || str_contains($name, 'system implementation')) {
             return $this->getImplementasiSistemPrompt();
+        }
+
+        // Pemenuhan Sertifikasi Internasional ISO 27001 (OMTI 2026 Divisi TI
+        // #4). Must be checked BEFORE the cybersecurity branch: the ISO/ISMS
+        // definition naturally contains the word "keamanan" which would
+        // otherwise misroute this certification-progress KPI to the incident
+        // / compliance prompts.
+        if ($this->isIsoCertification($name) || $this->isIsoCertification($definition)) {
+            return $this->getIsoCertificationPrompt();
         }
 
         if (str_contains($name, 'cybersecurity') || str_contains($name, 'cyber security') || str_contains($name, 'keamanan')) {
@@ -858,6 +963,188 @@ HINT;
         }
 
         return $this->getDefaultPrompt();
+    }
+
+    /**
+     * Detect Implementasi Inisiatif Rencana Strategis Teknologi Informasi
+     * (RSTI) measurements. Keyed on the distinctive "rsti" token or the full
+     * "rencana strategis teknologi informasi" phrase, in either the
+     * measurement name or its definition. Keep in sync with
+     * EvidenceService::isRstiMeasurement so the DB aggregation and the
+     * prompt route the same measurements.
+     */
+    protected function isRsti(string $haystack): bool
+    {
+        $haystack = strtolower($haystack);
+
+        return str_contains($haystack, 'rsti')
+            || str_contains($haystack, 'rencana strategis teknologi informasi');
+    }
+
+    /**
+     * Specialised prompt for Implementasi Inisiatif RSTI KPI.
+     *
+     * The evidence is a quarterly IT work monitoring report ("Monitoring
+     * Pekerjaan TI" / "Monitoring MPTI", based on the Master Plan / RSTI
+     * 2025-2029) that lists the whole portfolio of IT initiatives — each with
+     * a roadmap code (e.g. "B.1.3.4") and a status (Selesai / In Progress /
+     * Belum Berjalan / Drop) — for both "Portofolio Inisiatif Aplikasi TI"
+     * and "Portofolio Inisiatif Teknologi TI".
+     *
+     * The KPI itself only counts the REGISTERED OMTI initiatives (from the
+     * Master Initiative list injected below) that the report marks as
+     * "Selesai". Gemini never decides the realisasi rule — it only matches
+     * each registered initiative to its roadmap status; Laravel does the
+     * counting and aggregation.
+     */
+    protected function getRstiPrompt(): string
+    {
+        return <<<'PROMPT'
+        # Evidence Analysis: Implementasi Inisiatif RSTI
+
+        You are an expert IT portfolio auditor analyzing a quarterly IT strategic
+        plan monitoring report (e.g. "Monitoring Pekerjaan TI" / "Monitoring MPTI"
+        based on the Master Plan / Rencana Strategis Teknologi Informasi) for the
+        Implementasi Inisiatif RSTI KPI.
+
+        The report documents a PORTFOLIO of IT initiatives. Each initiative has:
+          - A roadmap CODE (e.g. "B.1.3.4", "A.11.8")
+          - A NAME (e.g. "Application load balancer (ALB)", "Penerapan Security
+            Information and Event Management (SIEM)")
+          - A STATUS: "Selesai" / "In Progress" / "Belum Berjalan" / "Drop"
+
+        The report typically groups initiatives into summary buckets such as
+        "Selesai (5 Inisiatif Teknologi TI)", "In Progress (...)", "Belum
+        Berjalan (...)", "Drop (...)" AND per-initiative detail pages with a
+        Status column. BOTH sources must be read; the per-initiative detail
+        page is authoritative when the two disagree.
+
+        ## CRITICAL: Registered Initiative Matching
+        The Master Initiative list for THIS KPI (provided in the Measurement
+        Details section) contains the REGISTERED OMTI RSTI initiatives (each
+        carries its roadmap code, e.g. "B.1.3.4 ... Application load balancer
+        (ALB)"). Your job is to find EACH registered initiative in the report
+        and record its status:
+
+        1. Match by CODE first (the code is unique and authoritative — e.g.
+           registered "B.1.3.4" matches report entry "B.1.3.4 Implementasi
+           tools / teknologi yang mampu melakukan orchestration switch over
+           secara otomatis seperti Application load balancer (ALB)").
+        2. If no code is available, match by name similarity (same technology,
+           e.g. "SIEM", "Security Information and Event Management").
+        3. NEVER match a registered initiative to a DIFFERENT initiative that
+           merely shares generic words (e.g. an "A.*" application initiative
+           must never match a "B.*" technology initiative).
+        4. Record the status EXACTLY as the report states for the matched
+           entry.
+        5. If a registered initiative CANNOT be found anywhere in the report,
+           record it with status "Tidak Ditemukan".
+
+        ## Output Rules
+        - `rsti_items` MUST contain exactly ONE entry for EVERY registered
+          initiative in the Master Initiative list (never more, never less).
+        - Each entry: { "code": "B.1.3.4", "name": "Application load balancer
+          (ALB)", "status": "Selesai" }. Use the registered code and the
+          report's status wording.
+        - `status` MUST be one of: "Selesai", "In Progress", "Belum Berjalan",
+          "Drop", "Tidak Ditemukan".
+        - `realisasi` MUST equal the number of `rsti_items` entries whose
+          status is EXACTLY "Selesai" (an integer: 0, 1, 2, ...).
+          - Initiatives that are "In Progress", "Belum Berjalan", "Drop", or
+            "Tidak Ditemukan" do NOT count.
+        - `matched_initiative.name` = the registered initiative that is
+          relevant to this evidence (the first "Selesai" one if any, else the
+          first registered initiative), with its matching confidence.
+
+        ## Evidence Validation
+        - Set `evidence_valid` to false if the document is NOT an RSTI / IT
+          strategic plan monitoring report (e.g. an invoice, a Berita Acara, a
+          SLA report, or any unrelated document).
+        - Set `evidence_valid` to false if no initiative status information
+          can be extracted at all.
+        - The report may cover the whole quarter or be a partial update — it
+          is still VALID; record whatever statuses are present.
+        PROMPT;
+    }
+
+    /**
+     * Detect Pemenuhan Sertifikasi Internasional ISO 27001 measurements.
+     * Keyed on "iso 27001" / "iso/iec 27001" or the distinctive phrase
+     * "sertifikasi internasional", in either the measurement name or its
+     * definition. Keep in sync with EvidenceService::isIsoCertification
+     * so the DB aggregation and the prompt route the same measurements.
+     */
+    protected function isIsoCertification(string $haystack): bool
+    {
+        $haystack = strtolower($haystack);
+
+        return str_contains($haystack, 'iso 27001')
+            || str_contains($haystack, 'iso/iec 27001')
+            || str_contains($haystack, 'sertifikasi internasional');
+    }
+
+    /**
+     * Specialised prompt for Pemenuhan Sertifikasi Internasional ISO 27001.
+     *
+     * This is a PERCENTAGE KPI: realisasi = fulfillment progress of the
+     * ISO/IEC 27001:2022 certification (or surveillance audit) commitment,
+     * 0-100. Evidence is typically scanned official letters/reports, e.g. a
+     * "Permohonan Pengadaan Pekerjaan Jasa Konsultansi Pendampingan Audit
+     * Surveillance ISO/IEC 27001:2022" (procurement request for the audit
+     * companion consultancy), audit plans, audit reports, or the certificate
+     * itself.
+     *
+     * The OMTI action plan defines two milestones — "80% Pelaksanaan"
+     * (documents, evidence, pendampingan) and "100% Lulus Audit" — so the
+     * prompt maps evidence to a 3-stage progress table. Gemini only reads
+     * and maps; Laravel aggregates (MAX across evidence per period).
+     */
+    protected function getIsoCertificationPrompt(): string
+    {
+        return <<<'PROMPT'
+        # Evidence Analysis: Pemenuhan Sertifikasi Internasional ISO 27001
+
+        You are an expert ISO 27001 certification auditor analyzing evidence
+        for the "Pemenuhan Sertifikasi Internasional ISO 27001" KPI. The
+        evidence is typically a SCANNED official document (surat, permohonan,
+        laporan) — read the image carefully, including letterheads, letter
+        numbers, dates, signatures, and body text.
+
+        This KPI measures the FULFILLMENT PROGRESS (percentage, 0-100) of the
+        ISO/IEC 27001:2022 certification commitment, per the OMTI action plan:
+          - 80%  = Pelaksanaan (penyiapan dokumen, evidence, dan pendampingan)
+          - 100% = Lulus Audit (sertifikat terbit / audit lulus)
+
+        ## Stage Mapping (use when no explicit percentage is stated)
+        | Evidence content | realisasi |
+        |---|---|
+        | Certificate issued / audit surveillance PASSED ("lulus audit",
+          "tidak ada major NC", "rekomendasi maintain/sertifikasi",
+          BERITA ACARA kelulusan audit) | 100 |
+        | Pelaksanaan executed or underway: procurement/contract of the
+          pendampingan-audit consultant, ISMS document preparation, internal
+          audit / manajemen review conducted, audit readiness activities,
+          pendampingan berjalan | 80 |
+        | Preparation/planning only: initial request, permohonan pengadaan
+          initiation, TOR/permohonan without executed activities, scheduling
+          of a future audit | 40 |
+        | Document unrelated to ISO 27001 certification progress | 0 and
+          evidence_valid = false |
+
+        ## Rules
+        - If the document explicitly states a progress percentage, use that
+          value (clamped to 0-100) instead of the table.
+        - `realisasi` MUST be a number between 0 and 100 (NOT 0-1).
+        - Judge by what the document ACTUALLY proves: a procurement REQUEST
+          (permohonan) alone proves preparation (40); a signed contract/SPK
+          or executed pendampingan proves pelaksanaan (80); a passed audit
+          result or certificate proves 100.
+        - When in doubt, prefer the LOWER stage (under-stating is safer than
+          over-stating).
+        - `matched_initiative.name` = the OMTI initiative the evidence best
+          matches ("80% Pelaksanaan" or "100% Lulus Audit" from the Master
+          Initiative list).
+        PROMPT;
     }
 
     protected function getImplementasiSistemPrompt(): string
@@ -1637,6 +1924,106 @@ PROMPT;
      */
     protected function getOutputFormat(?Measurement $measurement = null): string
     {
+        // Pemenuhan Sertifikasi Internasional ISO 27001: plain percentage
+        // realisasi, no structured breakdown arrays. Keep in sync with
+        // getBasePrompt routing.
+        $isIso = $measurement && (
+            $this->isIsoCertification(strtolower($measurement->measurement))
+            || $this->isIsoCertification(strtolower($measurement->definition ?? ''))
+        );
+
+        if ($isIso) {
+            return <<<'PROMPT'
+## Required Output Format
+You MUST respond with a valid JSON object in exactly this format:
+
+```json
+{
+    "measurement": "Pemenuhan Sertifikasi Internasional ISO 27001",
+    "matched_initiative": {
+        "name": "80% Pelaksanaan",
+        "confidence": 95
+    },
+    "evidence_valid": true,
+    "realisasi": 80,
+    "analysis": "Detailed analysis of the evidence (what document this is, its date/letter number, which certification milestone it proves, why the stage was chosen)...",
+    "recommendations": [
+        "First actionable recommendation with concrete scope + timeframe",
+        "Second actionable recommendation with concrete scope + timeframe",
+        "Third actionable recommendation with concrete scope + timeframe"
+    ]
+}
+```
+
+IMPORTANT NOTES:
+- `realisasi` is a PERCENTAGE between 0 and 100 (NOT 0-1) following the
+  stage mapping: 100 = lulus audit / sertifikat terbit, 80 = pelaksanaan
+  (dokumen, evidence, pendampingan), 40 = persiapan/permohonan awal saja.
+- If the document is not related to ISO 27001 certification progress,
+  return `"evidence_valid": false` and `realisasi: 0`.
+- Return ONLY the JSON object, no additional text.
+PROMPT;
+        }
+
+        // Implementasi Inisiatif RSTI must be checked BEFORE Implementasi
+        // Sistem so the rsti_items JSON example (not applications arrays) is
+        // emitted for this KPI. Keep in sync with getBasePrompt routing.
+        $isRsti = $measurement && (
+            $this->isRsti(strtolower($measurement->measurement))
+            || $this->isRsti(strtolower($measurement->definition ?? ''))
+        );
+
+        if ($isRsti) {
+            return <<<'PROMPT'
+## Required Output Format
+You MUST respond with a valid JSON object in exactly this format:
+
+```json
+{
+    "measurement": "Implementasi Inisiatif Rencana Strategis Teknologi Informasi (RSTI)",
+    "matched_initiative": {
+        "name": "Inisiatif Teknologi B.1.3.4: Application load balancer (ALB)",
+        "confidence": 98
+    },
+    "evidence_valid": true,
+    "realisasi": 1,
+    "rsti_items": [
+        {
+            "code": "B.1.3.4",
+            "name": "Application load balancer (ALB)",
+            "status": "Selesai"
+        },
+        {
+            "code": "B.1.5.12",
+            "name": "Penerapan Security Information and Event Management (SIEM)",
+            "status": "In Progress"
+        }
+    ],
+    "analysis": "Detailed analysis of the evidence (which monitoring report this is, the period covered, the status of every registered RSTI initiative, portfolio progress percentages)...",
+    "recommendations": [
+        "First actionable recommendation with concrete scope + timeframe",
+        "Second actionable recommendation with concrete scope + timeframe",
+        "Third actionable recommendation with concrete scope + timeframe"
+    ]
+}
+```
+
+IMPORTANT NOTES:
+- `rsti_items` is REQUIRED — exactly ONE entry for EVERY registered initiative
+  in the Master Initiative list (including initiatives not found in the report,
+  which get status "Tidak Ditemukan").
+- Each entry is an object with `code` (the roadmap code, e.g. "B.1.3.4" —
+  uppercase, no spaces), `name` (the registered initiative name), and `status`.
+- `status` MUST be one of: "Selesai", "In Progress", "Belum Berjalan", "Drop",
+  "Tidak Ditemukan" (exact wording, case-sensitive).
+- `realisasi` MUST equal the count of `rsti_items` entries whose status is
+  exactly "Selesai" (integer). Only "Selesai" counts toward the KPI.
+- If the document is not an RSTI / IT strategic plan monitoring report, return
+  `"evidence_valid": false`, `realisasi: 0`, and `"rsti_items": []`.
+- Return ONLY the JSON object, no additional text.
+PROMPT;
+        }
+
         $isImplementasiSistem = $measurement
             && (
                 str_contains(strtolower($measurement->measurement), 'implementasi sistem')

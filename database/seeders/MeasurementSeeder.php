@@ -22,6 +22,35 @@ class MeasurementSeeder extends Seeder
     public function run(): void
     {
         $measurements = [
+            // #4 (OMTI Depops) — INTERNAL BUSINESS PROCESS / Operational
+            // Excellence. Certification fulfillment percentage with the
+            // OMTI action-plan milestones: 80% Pelaksanaan, 100% Lulus
+            // Audit. Aggregated as MAX across evidence per period.
+            [
+                'perspective' => 'Internal Process',
+                'objective'   => 'Operational Excellence',
+                'measurement' => 'Pemenuhan Sertifikasi Internasional ISO 27001',
+                'definition'  => 'Pemenuhan standar sertifikasi ISO/IEC 27001:2022 (Information Security Management System). Penyediaan dokumen, evidence dan pendampingan dengan action plan: 80% Pelaksanaan (penyiapan dokumen, evidence, pendampingan audit) dan 100% Lulus Audit (sertifikat terbit / audit surveillance lulus).',
+                'formula'     => 'Higher is Better',
+                'unit'        => '%',
+                'weight'      => 8,
+            ],
+
+            // #3 (OMTI Depops) — INTERNAL BUSINESS PROCESS / Operational
+            // Excellence. Counts the registered RSTI roadmap initiatives
+            // (B.1.3.4 ALB, B.1.5.12 SIEM) whose status in the quarterly
+            // Monitoring MPTI report is "Selesai". Annual target = 2 with
+            // TW I-III = 0 (completion expected toward Q4).
+            [
+                'perspective' => 'Internal Process',
+                'objective'   => 'Operational Excellence',
+                'measurement' => 'Implementasi Inisiatif Rencana Strategis Teknologi Informasi (RSTI)',
+                'definition'  => 'Persentase inisiatif strategis yang tercantum dalam Rencana Strategis Teknologi Informasi (RSTI) yang berhasil direalisasikan sesuai jadwal roadmap. Implementasi roadmap strategis TI dengan tema Enhancing Analytic Capability and Connected System 2026.',
+                'formula'     => 'Higher is Better',
+                'unit'        => 'Jumlah',
+                'weight'      => 8,
+            ],
+
             // #1 — CUSTOMER / Innovation
             [
                 'perspective' => 'Customer',
@@ -117,7 +146,12 @@ class MeasurementSeeder extends Seeder
         ];
 
         foreach ($measurements as $data) {
-            Measurement::create($data);
+            // Idempotent: keyed on the unique measurement name so re-running
+            // the seeder never duplicates rows.
+            Measurement::firstOrCreate(
+                ['measurement' => $data['measurement']],
+                $data
+            );
         }
     }
 }

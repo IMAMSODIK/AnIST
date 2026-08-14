@@ -179,7 +179,20 @@ class EvidenceService
         // evidence files for the SAME application must count as ONE, not two.
         // We therefore count the number of UNIQUE application names across all
         // valid ai_results for the period, instead of SUM(realisasi).
-        if ($this->isImplementasiSistem($measurement)) {
+        if ($this->isRstiMeasurement($measurement)) {
+            $totalRealisasi = $this->calculateRstiRealisasi($measurementId, $quarter, $year);
+        } elseif ($this->isIsoCertification($measurement)) {
+            // Certification-progress percentage: MAX across evidence —
+            // multiple documents in one period each prove a progress stage,
+            // and the most advanced evidence defines the period's progress.
+            $totalRealisasi = AiResult::whereHas('upload', function ($q) use ($measurementId, $quarter, $year) {
+                $q->where('measurement_id', $measurementId)
+                    ->where('quarter', $quarter)
+                    ->where('year', $year);
+            })
+                ->where('evidence_valid', true)
+                ->max('realisasi') ?? 0;
+        } elseif ($this->isImplementasiSistem($measurement)) {
             $totalRealisasi = $this->countUniqueApplications($measurementId, $quarter, $year);
         } elseif ($this->isInvestmentRealisasi($measurement)) {
             $totalRealisasi = $this->calculateInvestmentRealisasi($measurementId, $quarter, $year);
@@ -234,6 +247,187 @@ class EvidenceService
             // detection in PromptManager::getOutputFormat() so DB
             // aggregation and the prompt format stay aligned.
             || str_contains($name, 'supporting unit');
+    }
+
+    /**
+     * Determine whether the measurement is a "Pemenuhan Sertifikasi
+     * Internasional ISO 27001" type, whose realisasi is a certification
+     * fulfillment PERCENTAGE (40 persiapan / 80 pelaksanaan / 100 lulus
+     * audit) aggregated with MAX across evidence. Keyed on "iso 27001" or
+     * "sertifikasi internasional". Keep in sync with
+     * PromptManager::isIsoCertification so the DB aggregation and the
+     * prompt route the same measurements.
+     */
+    protected function isIsoCertification($measurement): bool
+    {
+        if (!$measurement) {
+            return false;
+        }
+
+        $name = strtolower($measurement->measurement ?? '');
+        $definition = strtolower($measurement->definition ?? '');
+
+        foreach ([$name, $definition] as $haystack) {
+            if (str_contains($haystack, 'iso 27001')
+                || str_contains($haystack, 'iso/iec 27001')
+                || str_contains($haystack, 'sertifikasi internasional')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Determine whether the measurement is an "Implementasi Inisiatif Rencana
+     * Strategis Teknologi Informasi (RSTI)" type, which counts the number of
+     * REGISTERED roadmap initiatives whose status in the quarterly RSTI /
+     * Master Plan TI monitoring report is "Selesai". Keyed on "rsti" or the
+     * full "rencana strategis teknologi informasi" phrase. Keep in sync with
+     * PromptManager::isRsti so the DB aggregation and the prompt route the
+     * same measurements.
+     */
+    protected function isRstiMeasurement($measurement): bool
+    {
+        if (!$measurement) {
+            return false;
+        }
+
+        $name = strtolower($measurement->measurement ?? '');
+        $definition = strtolower($measurement->definition ?? '');
+
+        foreach ([$name, $definition] as $haystack) {
+            if (str_contains($haystack, 'rsti')
+                || str_contains($haystack, 'rencana strategis teknologi informasi')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Compute the RSTI realisasi for a measurement + period from all
+     * currently-valid ai_results.
+     *
+     * Each ai_result contributes `rsti_items` entries {code, name, status}
+     * (already canonicalized by ResponseValidator). Initiatives are
+     * de-duplicated by their roadmap CODE (uppercase, whitespace-stripped);
+     * entries without a code fall back to the same token-based name matching
+     * used for applications. When multiple evidence files disagree about the
+     * same initiative, the most progressed (or terminal) status wins —
+     * completion is monotonic, so a "Selesai" in a later report overrides an
+     * "In Progress" in an earlier one within the same period.
+     *
+     * realisasi = count of unique initiatives whose status is EXACTLY
+     * "Selesai".
+     *
+     * Fallbacks:
+     *   - If no `rsti_items` exist in any evidence (legacy responses without
+     *     the field), use MAX(realisasi) across all ai_results.
+     *   - If no valid evidence at all, return 0.
+     */
+    protected function calculateRstiRealisasi(int $measurementId, string $quarter, int $year): float
+    {
+        $aiResults = AiResult::whereHas('upload', function ($q) use ($measurementId, $quarter, $year) {
+            $q->where('measurement_id', $measurementId)
+                ->where('quarter', $quarter)
+                ->where('year', $year);
+        })
+            ->where('evidence_valid', true)
+            ->get();
+
+        // Rank terminal/progressed statuses higher so merges keep the most
+        // decisive status for the initiative.
+        $statusRank = [
+            'Tidak Ditemukan' => 0,
+            'Belum Berjalan' => 1,
+            'In Progress' => 2,
+            'Drop' => 3,
+            'Selesai' => 4,
+        ];
+
+        // Clusters keyed by code ("B.1.3.4") or, for code-less entries, by
+        // the sorted distinctive-token set of the initiative name.
+        $clusters = [];
+
+        foreach ($aiResults as $result) {
+            $items = $result->rsti_items_array ?? [];
+
+            foreach ($items as $item) {
+                $name = is_string($item['name'] ?? null) ? trim($item['name']) : '';
+
+                if ($name === '') {
+                    continue;
+                }
+
+                $status = is_string($item['status'] ?? null) ? $item['status'] : '';
+                $rank = $statusRank[$status] ?? 0;
+                $code = is_string($item['code'] ?? null) ? trim($item['code']) : '';
+
+                if ($code !== '') {
+                    $clusterKey = 'code:' . strtoupper(preg_replace('/\s+/', '', $code));
+
+                    if (!isset($clusters[$clusterKey]) || $rank > $clusters[$clusterKey]['rank']) {
+                        $clusters[$clusterKey] = [
+                            'name' => $name,
+                            'status' => $status,
+                            'rank' => $rank,
+                        ];
+                    }
+
+                    continue;
+                }
+
+                // No code: cluster by initiative-name tokens (same matching
+                // used for application de-duplication).
+                $tokens = $this->extractApplicationTokens($name);
+
+                if (empty($tokens['set'])) {
+                    continue;
+                }
+
+                $matchedKey = null;
+                foreach ($clusters as $key => $cluster) {
+                    if (str_starts_with($key, 'code:')) {
+                        continue;
+                    }
+
+                    if ($this->applicationTokensMatch($tokens, $cluster['tokens'])) {
+                        $matchedKey = $key;
+                        break;
+                    }
+                }
+
+                if ($matchedKey === null) {
+                    $clusters[$tokens['key']] = [
+                        'name' => $name,
+                        'status' => $status,
+                        'rank' => $rank,
+                        'tokens' => $tokens,
+                    ];
+                } elseif ($rank > $clusters[$matchedKey]['rank']) {
+                    $clusters[$matchedKey]['name'] = $name;
+                    $clusters[$matchedKey]['status'] = $status;
+                    $clusters[$matchedKey]['rank'] = $rank;
+                }
+            }
+        }
+
+        // Fallback: no rsti_items in any evidence — use MAX(realisasi) from
+        // all ai_results (legacy responses without rsti_items).
+        if (empty($clusters)) {
+            $maxRealisasi = $aiResults->max('realisasi');
+
+            return (float) ($maxRealisasi ?? 0);
+        }
+
+        $completed = array_filter(
+            $clusters,
+            fn ($cluster) => $cluster['status'] === 'Selesai'
+        );
+
+        return (float) count($completed);
     }
 
     /**

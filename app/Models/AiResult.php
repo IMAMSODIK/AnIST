@@ -31,6 +31,7 @@ class AiResult extends Model
         'sla_targets',
         'investment_items',
         'traceability_items',
+        'rsti_items',
         'analysis',
         'recommendation',
         'raw_json',
@@ -54,6 +55,7 @@ class AiResult extends Model
             'sla_targets' => 'array',
             'investment_items' => 'array',
             'traceability_items' => 'array',
+            'rsti_items' => 'array',
             'raw_json' => 'array',
             'processing_time' => 'decimal:2',
         ];
@@ -202,6 +204,29 @@ class AiResult extends Model
     public function getTraceabilityItemsArrayAttribute(): array
     {
         $items = $this->traceability_items;
+
+        if (is_array($items)) {
+            return $items;
+        }
+
+        if (is_string($items)) {
+            $decoded = json_decode($items, true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return [];
+    }
+
+    /**
+     * Get the rsti_items field as an array of {code, name, status} objects.
+     * Used by Implementasi Inisiatif RSTI KPI so the per-initiative roadmap
+     * status breakdown is preserved in the audit trail and aggregated by
+     * EvidenceService (count of unique initiatives with status "Selesai").
+     */
+    public function getRstiItemsArrayAttribute(): array
+    {
+        $items = $this->rsti_items;
 
         if (is_array($items)) {
             return $items;

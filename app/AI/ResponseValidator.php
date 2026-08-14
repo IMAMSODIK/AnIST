@@ -205,6 +205,48 @@ class ResponseValidator
             }
         }
 
+        // Validate rsti_items if present. Used by Implementasi Inisiatif RSTI
+        // KPI to capture the per-registered-initiative roadmap status
+        // breakdown (code + name + status) so Laravel can count unique
+        // initiatives with status "Selesai" across evidence files. Each
+        // entry must be an object with a non-empty string `name` and a valid
+        // `status` (one of: Selesai, In Progress, Belum Berjalan, Drop,
+        // Tidak Ditemukan). `code` is optional but recommended.
+        if (isset($data['rsti_items'])) {
+            if (!is_array($data['rsti_items'])) {
+                $errors[] = 'rsti_items must be an array';
+            } else {
+                $validStatuses = ['Selesai', 'In Progress', 'Belum Berjalan', 'Drop', 'Tidak Ditemukan'];
+
+                foreach ($data['rsti_items'] as $index => $item) {
+                    if (!is_array($item)) {
+                        $errors[] = "rsti_items[{$index}] must be an object";
+                        break;
+                    }
+                    if (!isset($item['name']) || !is_string($item['name']) || trim($item['name']) === '') {
+                        $errors[] = "rsti_items[{$index}].name must be a non-empty string";
+                        break;
+                    }
+                    if (isset($item['code']) && !is_string($item['code'])) {
+                        $errors[] = "rsti_items[{$index}].code must be a string";
+                        break;
+                    }
+                    if (!isset($item['status']) || !is_string($item['status'])) {
+                        $errors[] = "rsti_items[{$index}].status must be a string";
+                        break;
+                    }
+                    // Status matching is case-insensitive but must equal one
+                    // of the canonical roadmap statuses.
+                    $statusLower = strtolower(trim($item['status']));
+                    $canonicalStatuses = array_map('strtolower', $validStatuses);
+                    if (!in_array($statusLower, $canonicalStatuses, true)) {
+                        $errors[] = 'rsti_items[' . $index . '].status must be one of: ' . implode(', ', $validStatuses);
+                        break;
+                    }
+                }
+            }
+        }
+
         if (!empty($errors)) {
             Log::warning('AI response validation errors', [
                 'errors' => $errors,
@@ -499,6 +541,68 @@ class ResponseValidator
                     'achievement_pct' => $pct,
                 ];
             }, $data['traceability_items']),
+            fn ($item) => $item !== null,
+        ));
+
+        // Normalize rsti_items — array of {code, name, status} objects. Drop
+        // malformed entries, canonicalize the status to its exact title form
+        // (Selesai / In Progress / Belum Berjalan / Drop / Tidak Ditemukan)
+        // and uppercase-normalize the roadmap code so the aggregation in
+        // EvidenceService can cluster initiatives by code. Used by
+        // Implementasi Inisiatif RSTI KPI so the per-initiative roadmap
+        // status breakdown is preserved in the audit trail and aggregated
+        // (count of unique "Selesai" initiatives) by EvidenceService.
+        if (!isset($data['rsti_items'])) {
+            $data['rsti_items'] = [];
+        }
+
+        if (!is_array($data['rsti_items'])) {
+            $data['rsti_items'] = [];
+        }
+
+        $statusMap = [
+            'selesai' => 'Selesai',
+            'done' => 'Selesai',
+            'complete' => 'Selesai',
+            'completed' => 'Selesai',
+            'finished' => 'Selesai',
+            'in progress' => 'In Progress',
+            'on progress' => 'In Progress',
+            'berjalan' => 'In Progress',
+            'sedang berjalan' => 'In Progress',
+            'belum berjalan' => 'Belum Berjalan',
+            'not started' => 'Belum Berjalan',
+            'belum dimulai' => 'Belum Berjalan',
+            'drop' => 'Drop',
+            'dropped' => 'Drop',
+            'dibatalkan' => 'Drop',
+            'tidak ditemukan' => 'Tidak Ditemukan',
+            'not found' => 'Tidak Ditemukan',
+        ];
+
+        $data['rsti_items'] = array_values(array_filter(
+            array_map(function ($item) use ($statusMap) {
+                if (!is_array($item)) {
+                    return null;
+                }
+                $name = is_string($item['name'] ?? null) ? trim($item['name']) : '';
+                if ($name === '') {
+                    return null;
+                }
+                $statusRaw = is_string($item['status'] ?? null) ? strtolower(trim($item['status'])) : '';
+                $status = $statusMap[$statusRaw] ?? null;
+                if ($status === null) {
+                    return null;
+                }
+                $code = is_string($item['code'] ?? null)
+                    ? strtoupper(preg_replace('/\s+/', '', trim($item['code'])))
+                    : '';
+                return [
+                    'code' => $code,
+                    'name' => $name,
+                    'status' => $status,
+                ];
+            }, $data['rsti_items']),
             fn ($item) => $item !== null,
         ));
 

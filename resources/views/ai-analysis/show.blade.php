@@ -228,6 +228,45 @@
     </div>
     @endif
 
+    {{-- RSTI Items (Roadmap Initiative Status) --}}
+    @php $rstiItems = $aiResult->rsti_items_array ?? []; @endphp
+    @if(count($rstiItems) > 0)
+    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
+            <svg class="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+            RSTI Initiatives (Roadmap Status)
+        </h3>
+        <div class="space-y-3">
+            @php
+                $rstiStatusColor = [
+                    'Selesai'        => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+                    'In Progress'    => 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+                    'Belum Berjalan' => 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+                    'Drop'           => 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
+                    'Tidak Ditemukan' => 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400',
+                ];
+            @endphp
+            @foreach($rstiItems as $item)
+                @php
+                    $status = $item['status'] ?? '';
+                    $badge = $rstiStatusColor[$status] ?? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300';
+                    $code = $item['code'] ?? '';
+                @endphp
+                <div class="p-4 bg-slate-50 dark:bg-slate-700/30 rounded-xl">
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-sm font-medium text-slate-800 dark:text-white">
+                            @if($code !== '')<span class="inline-flex px-2 py-0.5 mr-2 rounded-lg bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 text-xs font-semibold">{{ $code }}</span>@endif
+                            {{ $item['name'] ?? '-' }}
+                        </p>
+                        <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap {{ $badge }}">{{ $status }}</span>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+        <p class="text-xs text-slate-400 dark:text-slate-500 mt-3">* Hanya inisiatif berstatus "Selesai" yang dihitung ke realisasi. Agregasi antar evidence menggunakan kode roadmap unik.</p>
+    </div>
+    @endif
+
     {{-- Matched Initiative --}}
     @if($aiResult->matched_initiative)
     <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">

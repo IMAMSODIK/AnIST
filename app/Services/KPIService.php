@@ -66,14 +66,49 @@ class KPIService
     public function calculateAchievement(float $realisasi, float $target, ?string $formula): float
     {
         $achievement = match (strtolower($formula ?? 'higher is better')) {
-            'higher is better' => ($realisasi / $target) * 100,
+            'higher is better' => $this->calculateHigherIsBetterAchievement($realisasi, $target),
             'lower is better' => $this->calculateLowerIsBetterAchievement($realisasi, $target),
-            'exact target' => $realisasi == $target ? 100 : max(0, (1 - abs($realisasi - $target) / $target) * 100),
-            default => ($realisasi / $target) * 100,
+            'exact target' => $this->calculateExactTargetAchievement($realisasi, $target),
+            default => $this->calculateHigherIsBetterAchievement($realisasi, $target),
         };
 
         // Cap at 120 to align with the top score band.
         return min(120, $achievement);
+    }
+
+    /**
+     * Achievement for "higher is better" KPIs.
+     *
+     * When target > 0: realisasi / target × 100.
+     *
+     * When target <= 0 (no delivery expected in this period — e.g. RSTI TW I-III
+     * target = 0 initiatives): any realisasi is ON or AHEAD of schedule, so the
+     * achievement is 100. This also guards the division-by-zero that previously
+     * crashed the evidence-processing job.
+     */
+    protected function calculateHigherIsBetterAchievement(float $realisasi, float $target): float
+    {
+        if ($target <= 0) {
+            return 100;
+        }
+
+        return ($realisasi / $target) * 100;
+    }
+
+    /**
+     * Achievement for "exact target" KPIs, guarded against target = 0.
+     */
+    protected function calculateExactTargetAchievement(float $realisasi, float $target): float
+    {
+        if ($realisasi == $target) {
+            return 100;
+        }
+
+        if ($target <= 0) {
+            return 0;
+        }
+
+        return max(0, (1 - abs($realisasi - $target) / $target) * 100);
     }
 
     /**

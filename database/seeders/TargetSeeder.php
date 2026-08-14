@@ -42,6 +42,14 @@ class TargetSeeder extends Seeder
         $year = (int) date('Y');
 
         $targets = [
+            // Pemenuhan Sertifikasi ISO 27001 (OMTI Depops #4) — annual 100,
+            // TW I=0, TW II=0, TW III=80 (Pelaksanaan), Q4=100 (Lulus Audit).
+            'Pemenuhan Sertifikasi Internasional ISO 27001' => ['Q1' => 0, 'Q2' => 0, 'Q3' => 80, 'Q4' => 100],
+
+            // Implementasi Inisiatif RSTI (OMTI Depops #3) — annual 2,
+            // cumulative 0/0/0/2 (TW I-III = 0, completion toward Q4).
+            'Implementasi Inisiatif Rencana Strategis Teknologi Informasi (RSTI)' => ['Q1' => 0, 'Q2' => 0, 'Q3' => 0, 'Q4' => 2],
+
             // #1 Penyelesaian Implementasi — annual 7, cumulative 1/2/4/7.
             'Penyelesaian Implementasi Sistem Aplikasi Upgrade/Baru'       => ['Q1' => 1,    'Q2' => 2,     'Q3' => 4,     'Q4' => 7],
 
@@ -76,12 +84,18 @@ class TargetSeeder extends Seeder
             }
 
             foreach ($quarterlyTargets as $quarter => $target) {
-                Target::create([
-                    'measurement_id' => $measurement->id,
-                    'year'           => $year,
-                    'quarter'        => $quarter,
-                    'target'         => $target,
-                ]);
+                // Idempotent: keyed on the unique (measurement, year, quarter)
+                // constraint so re-running the seeder never duplicates rows.
+                Target::firstOrCreate(
+                    [
+                        'measurement_id' => $measurement->id,
+                        'year'           => $year,
+                        'quarter'        => $quarter,
+                    ],
+                    [
+                        'target' => $target,
+                    ]
+                );
             }
         }
     }

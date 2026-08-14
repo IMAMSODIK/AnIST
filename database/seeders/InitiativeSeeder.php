@@ -17,6 +17,24 @@ class InitiativeSeeder extends Seeder
     public function run(): void
     {
         $initiatives = [
+            // Pemenuhan Sertifikasi ISO 27001 (OMTI Depops #4) — the two
+            // action-plan milestones the AI matches evidence against.
+            'Pemenuhan Sertifikasi Internasional ISO 27001' => [
+                'Penyediaan dokumen, evidence dan pendampingan dengan action plan 80% Pelaksanaan dan 100% Lulus Audit',
+                '80% Pelaksanaan: penyiapan dokumen, evidence, dan pendampingan audit sertifikasi ISO/IEC 27001:2022',
+                '100% Lulus Audit: kelulusan audit surveillance/sertifikasi ISO/IEC 27001:2022 dengan sertifikat terbit',
+            ],
+
+            // Implementasi Inisiatif RSTI (OMTI Depops #3) — roadmap theme
+            // plus the 2 registered OMTI technology initiatives the KPI
+            // counts. The codes (B.1.3.4 / B.1.5.12) are matched by the AI
+            // against the quarterly Monitoring MPTI report.
+            'Implementasi Inisiatif Rencana Strategis Teknologi Informasi (RSTI)' => [
+                'Implementasi roadmap strategis TI dengan tema Enhancing Analytic Capability and Connected System 2026',
+                'Inisiatif Teknologi B.1.3.4: Application load balancer (ALB)',
+                'Inisiatif Teknologi B.1.5.12: Penerapan Security Information and Event Management (SIEM)',
+            ],
+
             // #1 Penyelesaian Implementasi Sistem Aplikasi Upgrade/Baru —
             // PDF lists 7 specific projects to deliver in 2026.
             'Penyelesaian Implementasi Sistem Aplikasi Upgrade/Baru' => [
@@ -87,10 +105,14 @@ class InitiativeSeeder extends Seeder
             }
 
             foreach ($initiativeList as $initiative) {
-                Initiative::create([
-                    'measurement_id' => $measurement->id,
-                    'initiative'     => $initiative,
-                ]);
+                // Idempotent: keyed on (measurement, initiative text) so
+                // re-running the seeder never duplicates rows.
+                Initiative::firstOrCreate(
+                    [
+                        'measurement_id' => $measurement->id,
+                        'initiative'     => $initiative,
+                    ]
+                );
             }
         }
     }
