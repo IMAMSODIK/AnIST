@@ -30,7 +30,7 @@
             <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
             Upload Dokumen Strategis
         </h3>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">Hanya file PDF, maksimal 20MB per file. Boleh beberapa file sekaligus. Proses analisis ~15-45 detik per dokumen.</p>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">Hanya file PDF, maksimal 50MB per file. Boleh beberapa file sekaligus. Proses analisis ~15-45 detik per dokumen.</p>
 
         {{-- Dropzone multi-file (NO native <form> submit; we never submit this form,
              upload handled via AJAX to /upload-ajax one file at a time) --}}
@@ -50,7 +50,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                     </svg>
                     <p class="text-sm text-slate-600 dark:text-slate-400">Click untuk pilih file atau drag &amp; drop ke sini <span class="text-xs text-slate-400">(boleh beberapa PDF sekaligus)</span></p>
-                    <p class="text-xs text-slate-400 mt-2">PDF hingga 20MB per file</p>
+                    <p class="text-xs text-slate-400 mt-2">PDF hingga 50MB per file</p>
                 </div>
             </div>
 
@@ -353,8 +353,8 @@ function strategicAdvisor() {
                 if (f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name)) {
                     continue;
                 }
-                if (f.size > 20 * 1024 * 1024) {
-                    alert(`"${f.name}" melebihi 20MB dan diabaikan.`);
+                if (f.size > 50 * 1024 * 1024) {
+                    alert(`"${f.name}" melebihi 50MB dan diabaikan.`);
                     continue;
                 }
                 this.queue.push({

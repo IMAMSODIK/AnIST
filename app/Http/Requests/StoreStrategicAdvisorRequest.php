@@ -14,7 +14,7 @@ class StoreStrategicAdvisorRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'file' => ['required', 'file', 'mimes:pdf', 'max:20480'],
+            'file' => ['required', 'file', 'mimes:pdf', 'max:51200'],
         ];
     }
 
@@ -23,7 +23,7 @@ class StoreStrategicAdvisorRequest extends FormRequest
         return [
             'file.required' => 'File PDF wajib diunggah.',
             'file.mimes'    => 'Hanya file PDF yang didukung.',
-            'file.max'      => 'Ukuran file maksimal 20MB.',
+            'file.max'      => 'Ukuran file maksimal 50MB.',
         ];
     }
 }
