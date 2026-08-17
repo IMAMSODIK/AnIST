@@ -34,11 +34,27 @@
     0%   { background-position: 200% 0; }
     100% { background-position: -200% 0; }
 }
-.progress-bar-anim {
+/* Track & fill bar progres — CSS murni (bukan utility gradient Tailwind)
+   agar pasti tampil di Tailwind v4. */
+.progress-track {
+    height: 6px;
+    border-radius: 9999px;
+    background: #e2e8f0;
+    overflow: hidden;
+}
+@media (prefers-color-scheme: dark) {
+    .progress-track { background: #475569; }
+}
+.progress-fill {
+    height: 100%;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, #4f46e5, #8b5cf6, #4f46e5);
     background-size: 200% 100%;
     animation: progress-shimmer 1.4s linear infinite;
-    transition: width .25s ease-out;
+    transition: width .3s ease-out;
 }
+.progress-fill.is-done   { background: #10b981; animation: none; }
+.progress-fill.is-failed { background: #f43f5e; animation: none; }
 @keyframes fade-slide-up {
     from { opacity: 0; transform: translateY(4px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -144,13 +160,9 @@
 
                                 {{-- Progress bar + fase proses --}}
                                 <div x-show="f.step === 'uploading' || f.step === 'completed'" x-transition class="mt-1.5">
-                                    <div class="h-1.5 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
-                                        <div class="h-full rounded-full transition-[width] duration-300 ease-out"
-                                             :class="f.step === 'completed'
-                                                 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
-                                                 : (f.step === 'failed'
-                                                     ? 'bg-gradient-to-r from-rose-500 to-rose-400'
-                                                     : 'bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500 progress-bar-anim bg-[length:200%_100%]')"
+                                    <div class="progress-track">
+                                        <div class="progress-fill"
+                                             :class="f.step === 'completed' ? 'is-done' : (f.step === 'failed' ? 'is-failed' : '')"
                                              :style="'width:' + f.progress + '%'"></div>
                                     </div>
                                     <div class="flex justify-between mt-1" x-show="f.step === 'uploading'">
@@ -420,7 +432,7 @@ function advisorPage() {
                 xhr.upload.onprogress = (e) => {
                     if (! e.lengthComputable) return;
                     const pct = Math.round((e.loaded / e.total) * 100);
-                    this.setStage(f, 2 + pct * 0.13, 'Mengunggah file\u2026 ' + pct + '%');
+                    this.setStage(f, 2 + pct * 0.13, 'Mengunggah file\u2026');
                 };
                 xhr.onload = () => resolve({
                     ok: xhr.status >= 200 && xhr.status < 300,
@@ -479,8 +491,8 @@ function advisorPage() {
                     }
 
                     // TAHAP 2 (15-97%): polling proses chunk demi chunk sampai
-                    // selesai. Tiap panggilan hanya ~8 detik di server sehingga
-                    // tidak pernah menabrak proxy timeout shared hosting.
+                    // selesai. Tiap panggilan dibuat singkat agar tidak
+                    // menabrak proxy timeout shared hosting.
                     const processUrl = data.process_url;
                     let guard = 0;
                     let done = false;
@@ -537,7 +549,7 @@ function advisorPage() {
                             f.error = pd.error_message || pd.document?.error_message || 'Proses gagal.';
                             done = true;
                         } else if (pagesTotal > 0) {
-                            // Progres NYATA: n dari total halaman -> 15-97%.
+                            // Progres nyata: n dari total halaman -> 15-97%.
                             this.setStage(f, 15 + (pagesDone / pagesTotal) * 82,
                                 'Ekstraksi halaman ' + pagesDone + ' / ' + pagesTotal + '\u2026');
                             await new Promise(r => setTimeout(r, 300));

@@ -89,7 +89,7 @@ class AdvisorChatService
      * 'completed' / 'failed'. Setiap panggilan menambahkan halaman baru
      * ke pages_json sehingga aman dihentikan/konkurensi sederhana.
      */
-    public function processDocumentChunk(AdvisorDocument $document, float $timeBudget = 8.0): AdvisorDocument
+    public function processDocumentChunk(AdvisorDocument $document, float $timeBudget = 5.0): AdvisorDocument
     {
         if (in_array($document->status, ['completed', 'failed'], true)) {
             return $document;

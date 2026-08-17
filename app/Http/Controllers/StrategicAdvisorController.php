@@ -94,10 +94,9 @@ class StrategicAdvisorController extends Controller
 
     /**
      * JSON endpoint untuk upload dokumen via AJAX (satu file per-request,
-     * frontend meng-upload berurutan). CEPAT: hanya menyimpan file dan
-     * membuat record berstatus 'processing' — ekstraksi 1000+ halaman
-     * dilakukan bertahap lewat processDocument() yang dipolling client,
-     * menghindari HTTP 504 gateway timeout di shared hosting.
+     * frontend meng-upload berurutan). Endpoint ini hanya menyimpan file dan
+     * membuat record berstatus 'processing'. Ekstraksi dilakukan bertahap
+     * melalui processDocument() oleh browser.
      */
     public function storeDocument(StoreAdvisorDocumentRequest $request): JsonResponse
     {
@@ -116,8 +115,8 @@ class StrategicAdvisorController extends Controller
     }
 
     /**
-     * JSON endpoint untuk memproses SATU CHUNK ekstraksi halaman (<= ~10
-     * detik). Frontend memanggil ini berulang sampai status 'completed'.
+     * JSON endpoint untuk memproses SATU CHUNK ekstraksi halaman. Frontend
+     * memanggil ini berulang sampai status 'completed'.
      */
     public function processDocument(Request $request, AdvisorDocument $document): JsonResponse
     {
