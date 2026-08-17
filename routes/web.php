@@ -71,6 +71,8 @@ Route::middleware('auth')->group(function () {
     // Strategic Advisor (knowledge base dokumen + Q&A dengan sitasi & tren)
     Route::get('/strategic-advisor', [StrategicAdvisorController::class, 'index'])->name('strategic-advisor.index');
     Route::post('/strategic-advisor/documents', [StrategicAdvisorController::class, 'storeDocument'])->name('strategic-advisor.documents.store');
+
+    Route::post('/strategic-advisor/documents/{document}/process', [StrategicAdvisorController::class, 'processDocument'])->name('strategic-advisor.documents.process');
     Route::delete('/strategic-advisor/documents/{document}', [StrategicAdvisorController::class, 'destroyDocument'])->name('strategic-advisor.documents.destroy');
     Route::post('/strategic-advisor/ask', [StrategicAdvisorController::class, 'ask'])->name('strategic-advisor.ask');
     Route::get('/strategic-advisor/history', [StrategicAdvisorController::class, 'history'])->name('strategic-advisor.history');

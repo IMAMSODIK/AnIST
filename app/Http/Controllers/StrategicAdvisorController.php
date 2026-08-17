@@ -7,6 +7,7 @@ use App\Http\Requests\StoreAdvisorDocumentRequest;
 use App\Models\AdvisorDocument;
 use App\Models\AdvisorMessage;
 use App\Services\AdvisorChatService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
@@ -60,32 +61,32 @@ class StrategicAdvisorController extends Controller
         // Serialisasi JSON di controller — Blade @json() tidak mendukung
         // ekspresi multi-baris.
         $documentsJson = $documents->getCollection()->map(fn (AdvisorDocument $d) => [
-            'id'            => $d->id,
-            'name'          => $d->name,
+            'id' => $d->id,
+            'name' => $d->name,
             'document_type' => $d->document_type,
-            'company'       => $d->company,
-            'period'        => $d->period,
-            'total_pages'   => $d->total_pages,
-            'char_count'    => $d->char_count,
-            'status'        => $d->status,
+            'company' => $d->company,
+            'period' => $d->period,
+            'total_pages' => $d->total_pages,
+            'char_count' => $d->char_count,
+            'status' => $d->status,
             'error_message' => $d->status === 'completed' && $d->error_message ? $d->error_message : null,
-            'created_at'    => $d->created_at?->diffForHumans(),
-            'delete_url'    => route('strategic-advisor.documents.destroy', $d),
+            'created_at' => $d->created_at?->diffForHumans(),
+            'delete_url' => route('strategic-advisor.documents.destroy', $d),
         ])->values()->all();
 
         $messagesJson = $messages->map(fn (AdvisorMessage $m) => [
-            'id'              => $m->id,
-            'question'        => $m->question,
-            'answer'          => $m->answer,
-            'citations'       => $m->citations_array,
-            'trends'          => $m->trends_array,
+            'id' => $m->id,
+            'question' => $m->question,
+            'answer' => $m->answer,
+            'citations' => $m->citations_array,
+            'trends' => $m->trends_array,
             'recommendations' => $m->recommendations_array,
-            'grounded'        => (bool) $m->grounded,
-            'status'          => $m->status,
-            'error_message'   => $m->error_message,
+            'grounded' => (bool) $m->grounded,
+            'status' => $m->status,
+            'error_message' => $m->error_message,
             'processing_time' => $m->processing_time !== null ? (float) $m->processing_time : null,
-            'created_at'      => $m->created_at?->diffForHumans(),
-            'pending'         => false,
+            'created_at' => $m->created_at?->diffForHumans(),
+            'pending' => false,
         ])->values()->all();
 
         return view('strategic-advisor.index', compact('documents', 'messages', 'documentsJson', 'messagesJson'));
@@ -93,37 +94,65 @@ class StrategicAdvisorController extends Controller
 
     /**
      * JSON endpoint untuk upload dokumen via AJAX (satu file per-request,
-     * frontend meng-upload berurutan). Ekstraksi per halaman ~5-30 detik
-     * untuk dokumen besar; TIDAK memanggil Gemini sehingga jauh lebih
-     * cepat daripada alur lama.
+     * frontend meng-upload berurutan). CEPAT: hanya menyimpan file dan
+     * membuat record berstatus 'processing' — ekstraksi 1000+ halaman
+     * dilakukan bertahap lewat processDocument() yang dipolling client,
+     * menghindari HTTP 504 gateway timeout di shared hosting.
      */
-    public function storeDocument(StoreAdvisorDocumentRequest $request): \Illuminate\Http\JsonResponse
+    public function storeDocument(StoreAdvisorDocumentRequest $request): JsonResponse
     {
-        set_time_limit(300);
-
-        $document = $this->service->ingestDocument(
+        $document = $this->service->storeDocument(
             $request->file('file'),
             $request->user()->id,
         );
 
         return response()->json([
-            'success'    => $document->status === 'completed',
-            'status'     => $document->status,
-            'document'   => [
-                'id'            => $document->id,
-                'name'          => $document->name,
-                'document_type' => $document->document_type,
-                'company'       => $document->company,
-                'period'        => $document->period,
-                'total_pages'   => $document->total_pages,
-                'char_count'    => $document->char_count,
-                'status'        => $document->status,
-                'error_message' => $document->error_message,
-                'created_at'    => $document->created_at?->diffForHumans(),
-                'delete_url'    => route('strategic-advisor.documents.destroy', $document),
-            ],
-            'error_message' => $document->error_message,
+            'success' => true,
+            'status' => $document->status,
+            'document' => $this->documentPayload($document),
+            'process_url' => route('strategic-advisor.documents.process', $document),
+            'error_message' => null,
         ], 200);
+    }
+
+    /**
+     * JSON endpoint untuk memproses SATU CHUNK ekstraksi halaman (<= ~10
+     * detik). Frontend memanggil ini berulang sampai status 'completed'.
+     */
+    public function processDocument(Request $request, AdvisorDocument $document): JsonResponse
+    {
+        if ($document->user_id !== $request->user()->id) {
+            abort(403, 'Dokumen bukan milik Anda.');
+        }
+
+        $document = $this->service->processDocumentChunk($document);
+
+        return response()->json([
+            'success' => $document->status === 'completed',
+            'status' => $document->status,
+            'pages_done' => count($document->pages_json ?? []),
+            'total_pages' => $document->total_pages,
+            'document' => $this->documentPayload($document),
+            'error_message' => $document->status === 'failed' ? $document->error_message : null,
+        ], 200);
+    }
+
+    /** Bentuk payload dokumen untuk frontend. */
+    private function documentPayload(AdvisorDocument $document): array
+    {
+        return [
+            'id' => $document->id,
+            'name' => $document->name,
+            'document_type' => $document->document_type,
+            'company' => $document->company,
+            'period' => $document->period,
+            'total_pages' => $document->total_pages,
+            'char_count' => $document->char_count,
+            'status' => $document->status,
+            'error_message' => $document->error_message,
+            'created_at' => $document->created_at?->diffForHumans(),
+            'delete_url' => route('strategic-advisor.documents.destroy', $document),
+        ];
     }
 
     /** Hapus dokumen dari knowledge base (beserta file fisiknya). */
@@ -137,14 +166,14 @@ class StrategicAdvisorController extends Controller
 
         return redirect()
             ->route('strategic-advisor.index')
-            ->with('success', 'Dokumen "' . $document->name . '" dihapus dari knowledge base.');
+            ->with('success', 'Dokumen "'.$document->name.'" dihapus dari knowledge base.');
     }
 
     /**
      * JSON endpoint untuk bertanya / meminta saran. Retrieval + Gemini
      * grounded call bisa memakan 15-60 detik.
      */
-    public function ask(AskAdvisorRequest $request): \Illuminate\Http\JsonResponse
+    public function ask(AskAdvisorRequest $request): JsonResponse
     {
         set_time_limit(300);
 
@@ -155,21 +184,21 @@ class StrategicAdvisorController extends Controller
 
         return response()->json([
             'success' => $message->status === 'completed',
-            'status'  => $message->status,
+            'status' => $message->status,
             'message' => [
-                'id'              => $message->id,
-                'question'        => $message->question,
-                'answer'          => $message->answer,
-                'citations'       => $message->citations_array,
-                'trends'          => $message->trends_array,
+                'id' => $message->id,
+                'question' => $message->question,
+                'answer' => $message->answer,
+                'citations' => $message->citations_array,
+                'trends' => $message->trends_array,
                 'recommendations' => $message->recommendations_array,
-                'grounded'        => (bool) $message->grounded,
-                'status'          => $message->status,
-                'error_message'   => $message->error_message,
+                'grounded' => (bool) $message->grounded,
+                'status' => $message->status,
+                'error_message' => $message->error_message,
                 'processing_time' => $message->processing_time !== null
                                         ? (float) $message->processing_time
                                         : null,
-                'created_at'      => $message->created_at?->diffForHumans(),
+                'created_at' => $message->created_at?->diffForHumans(),
             ],
             'error_message' => $message->error_message,
         ], 200);

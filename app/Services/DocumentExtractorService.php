@@ -5,6 +5,7 @@ namespace App\Services;
 use App\DTO\DocumentExtractionDTO;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Smalot\PdfParser\Document;
 use Smalot\PdfParser\Parser;
 use Spatie\PdfToText\Pdf;
 use Throwable;
@@ -275,18 +276,8 @@ class DocumentExtractorService
      *  dulu didekripsi via PdfDecryptService karena smalot menolaknya. */
     protected function pdfToTextPhp(string $absPath, int $maxPages = 0): string
     {
-        $parsePath = $absPath;
-        $temp = null;
-
-        $decryptor = new PdfDecryptService;
-        if ($decryptor->isEncrypted($absPath)) {
-            $temp = $decryptor->decryptToTemp($absPath);
-            $parsePath = $temp;
-        }
-
         try {
-            $parser = new Parser;
-            $pdf = $parser->parseFile($parsePath);
+            $pdf = $this->parseWithSmalot($absPath, $temp);
             $pages = $pdf->getPages();
 
             if ($maxPages > 0) {
@@ -304,10 +295,120 @@ class DocumentExtractorService
 
             return implode("\x0C", $texts);
         } finally {
+            if (isset($temp) && $temp !== null) {
+                @unlink($temp);
+            }
+        }
+    }
+
+    /**
+     * Parse PDF via smalot/pdfparser dengan penanganan PDF terenkripsi.
+     *
+     * @param  string  $absPath  Path PDF di disk.
+     * @param  ?string  $tempPath  Diisi path file dekripsi sementara bila PDF
+     *                             terenkripsi — CALLER wajib @unlink setelah
+     *                             selesai memakai dokumen hasil parse.
+     */
+    protected function parseWithSmalot(string $absPath, ?string &$tempPath = null): Document
+    {
+        $tempPath = null;
+
+        $decryptor = new PdfDecryptService;
+        if ($decryptor->isEncrypted($absPath)) {
+            $tempPath = $decryptor->decryptToTemp($absPath);
+            $absPath = $tempPath;
+        }
+
+        return (new Parser)->parseFile($absPath);
+    }
+
+    /**
+     * Ekstraksi teks PDF PER CHUNK halaman — dirancang untuk dokumen raksasa
+     * (1000+ halaman) di shared hosting yang membatasi durasi request
+     * (HTTP 504 gateway timeout bila satu request > 30-60 detik).
+     *
+     * Caller memanggil method ini berulang dengan $offset yang meningkat
+     * hingga next_offset >= total. Tiap panggilan hanya memproses halaman
+     * selama $timeBudget detik sehingga aman terhadap proxy timeout.
+     *
+     * Return shape:
+     *   [
+     *     'pages'       => string[], // teks halaman baru mulai $offset
+     *     'next_offset' => int,      // offset panggilan berikutnya
+     *     'total'       => int,      // total halaman dokumen
+     *   ]
+     */
+    public function extractPageChunk(string $absPath, int $offset = 0, float $timeBudget = 8.0): array
+    {
+        $started = microtime(true);
+        $trimMask = " \t\n\r\0\x0B";
+        $total = $this->countPdfPages($absPath);
+
+        // Jalur binary: ekstraksi penuh sangat cepat (detik) — ambil semua
+        // halaman tersisa sekaligus.
+        if ($this->pdfBinary && class_exists(Pdf::class)) {
+            $raw = $this->pdfToText($absPath);
+            $raw = str_replace(["\r\n", "\r"], "\n", $raw);
+            $pages = array_map(
+                fn (string $p): string => $this->sanitizeUtf8(trim($p, $trimMask)),
+                explode("\x0C", $raw),
+            );
+            if (count($pages) > 1 && end($pages) === '') {
+                array_pop($pages);
+            }
+            $total = max($total, count($pages));
+
+            return [
+                'pages' => array_values(array_slice($pages, $offset)),
+                'next_offset' => count($pages),
+                'total' => $total,
+            ];
+        }
+
+        // Jalur pure-PHP: parse struktural (cepat) lalu decode halaman
+        // satu per satu SELAMA time budget saja.
+        $temp = null;
+        try {
+            $pdf = $this->parseWithSmalot($absPath, $temp);
+            $objs = $pdf->getPages();
+            $total = max($total, count($objs));
+
+            $out = [];
+            $i = $offset;
+            for ($i = $offset; $i < count($objs); $i++) {
+                if ($out !== [] && microtime(true) - $started > $timeBudget) {
+                    break; // jaga durasi request tetap di bawah proxy timeout
+                }
+                try {
+                    $text = $objs[$i]->getText();
+                } catch (Throwable) {
+                    $text = '';
+                }
+                $text = str_replace(["\r\n", "\r"], "\n", $text);
+                $out[] = $this->sanitizeUtf8(trim($text, $trimMask));
+            }
+
+            return [
+                'pages' => $out,
+                'next_offset' => $i,
+                'total' => $total,
+            ];
+        } finally {
             if ($temp !== null) {
                 @unlink($temp);
             }
         }
+    }
+
+    /** Analisis metadata (tipe dokumen / perusahaan / periode) dari teks
+     *  gabungan hasil ekstraksi — dipakai setelah chunk terakhir. */
+    public function analyzeMetadata(string $fullText): array
+    {
+        return [
+            'document_type' => $this->detectDocumentType($fullText),
+            'company' => $this->extractCompany($fullText),
+            'period' => $this->extractPeriod($fullText),
+        ];
     }
 
     /** Hitung jumlah halaman PDF via pdfinfo jika tersedia, fallback heuristik. */

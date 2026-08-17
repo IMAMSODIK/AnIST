@@ -459,6 +459,8 @@ function advisorPage() {
                 fd.append('_token', this.csrfToken());
 
                 try {
+                    // TAHAP 1: upload cepat — server hanya menyimpan file
+                    // (menghindari HTTP 504 gateway timeout).
                     const resp = await fetch('{!! route('strategic-advisor.documents.store') !!}', {
                         method: 'POST',
                         body: fd,
@@ -466,14 +468,81 @@ function advisorPage() {
                     });
                     const data = await resp.json().catch(() => ({}));
 
-                    if (resp.ok && data.status === 'completed') {
-                        this.stopProgress(f, true);
-                        f.step = 'completed';
-                        if (data.document) this.documents.unshift(data.document);
-                    } else {
+                    if (! (resp.ok && data.document)) {
                         this.stopProgress(f);
                         f.step = 'failed';
                         f.error = data.error_message || data.message || ('HTTP ' + resp.status);
+                        continue;
+                    }
+
+                    // TAHAP 2: polling proses chunk demi chunk sampai selesai.
+                    // Tiap panggilan hanya ~8 detik di server sehingga tidak
+                    // pernah menabrak proxy timeout shared hosting.
+                    const processUrl = data.process_url;
+                    let guard = 0;
+                    let done = false;
+
+                    while (! done) {
+                        guard++;
+                        if (guard > 3000) {
+                            this.stopProgress(f);
+                            f.step = 'failed';
+                            f.error = 'Proses terlalu lama — dibatalkan.';
+                            break;
+                        }
+
+                        let pd;
+                        try {
+                            const pr = await fetch(processUrl, {
+                                method: 'POST',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': this.csrfToken(),
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                },
+                            });
+                            pd = await pr.json().catch(() => ({}));
+                            if (! pr.ok) {
+                                this.stopProgress(f);
+                                f.step = 'failed';
+                                f.error = pd.error_message || pd.message || ('HTTP ' + pr.status);
+                                break;
+                            }
+                        } catch (err) {
+                            // Gangguan jaringan sesaat: tunggu & ulangi.
+                            await new Promise(r => setTimeout(r, 1500));
+                            continue;
+                        }
+
+                        const pagesDone = pd.pages_done || 0;
+                        const pagesTotal = pd.total_pages || 0;
+
+                        if (pagesTotal > 0) {
+                            // Progres NYATA berdasarkan halaman terekstrak —
+                            // hentikan easing/label palsu.
+                            this.stopProgress(f);
+                            f.progress = Math.min(92, 5 + (pagesDone / pagesTotal) * 87);
+                            f.phase = 'Ekstraksi halaman ' + pagesDone + ' / ' + pagesTotal + '\u2026';
+                        }
+
+                        if (pd.status === 'completed') {
+                            this.stopProgress(f, true);
+                            f.step = 'completed';
+                            if (pd.document) {
+                                // ganti entry yang sama (bila unshift di awal)
+                                this.documents = this.documents.filter(x => x.id !== pd.document.id);
+                                this.documents.unshift(pd.document);
+                            }
+                            done = true;
+                        } else if (pd.status === 'failed') {
+                            this.stopProgress(f);
+                            f.step = 'failed';
+                            f.error = pd.error_message || pd.document?.error_message || 'Proses gagal.';
+                            done = true;
+                        } else {
+                            // masih 'processing' — jeda kecil lalu poll lagi
+                            await new Promise(r => setTimeout(r, 300));
+                        }
                     }
                 } catch (err) {
                     this.stopProgress(f);

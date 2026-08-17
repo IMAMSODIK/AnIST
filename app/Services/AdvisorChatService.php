@@ -44,6 +44,7 @@ class AdvisorChatService
 
     /** Target & batas ukuran satu potongan konteks (karakter). */
     protected const CHUNK_TARGET_CHARS = 1_800;
+
     const CHUNK_MAX_CHARS = 2_600;
 
     public function __construct(
@@ -57,15 +58,131 @@ class AdvisorChatService
     // =========================================================================
 
     /**
+     * Simpan file upload dan buat record dokumen berstatus 'processing'.
+     * CEPAT (tanpa ekstraksi) — dipanggil endpoint upload; ekstraksi
+     * sesungguhnya dilakukan bertahap oleh processDocumentChunk() yang
+     * dipolling client, agar dokumen 1000+ halaman tidak menabrak
+     * gateway timeout (HTTP 504) di shared hosting.
+     */
+    public function storeDocument(UploadedFile $file, int $userId): AdvisorDocument
+    {
+        $originalName = $file->getClientOriginalName();
+        $safeName = Str::random(20).'-'.Str::slug(pathinfo($originalName, PATHINFO_FILENAME)).'.pdf';
+
+        $storedPath = $file->storeAs('strategic-advisor', $safeName, 'local');
+        if (! $storedPath) {
+            throw new \RuntimeException('Gagal menyimpan file upload. Cek permission storage/app/strategic-advisor.');
+        }
+
+        return AdvisorDocument::create([
+            'user_id' => $userId,
+            'name' => $originalName,
+            'file_path' => $storedPath,
+            'status' => 'processing',
+            'pages_json' => [],
+        ]);
+    }
+
+    /**
+     * Proses SATU CHUNK ekstraksi halaman (durasi <= $timeBudget detik).
+     * Client memanggil method ini berulang (polling) sampai status
+     * 'completed' / 'failed'. Setiap panggilan menambahkan halaman baru
+     * ke pages_json sehingga aman dihentikan/konkurensi sederhana.
+     */
+    public function processDocumentChunk(AdvisorDocument $document, float $timeBudget = 8.0): AdvisorDocument
+    {
+        if (in_array($document->status, ['completed', 'failed'], true)) {
+            return $document;
+        }
+
+        @set_time_limit(max(60, (int) ceil($timeBudget * 4)));
+        $startedAt = microtime(true);
+
+        try {
+            $absPath = Storage::disk('local')->path($document->file_path);
+            $existing = $document->pages_json ?? [];
+
+            $chunk = $this->extractor->extractPageChunk(
+                $absPath,
+                offset: count($existing),
+                timeBudget: $timeBudget,
+            );
+
+            $pages = array_merge($existing, $chunk['pages']);
+            $total = $chunk['total'];
+            $finished = $chunk['next_offset'] >= $total;
+
+            $update = [
+                'pages_json' => $pages,
+                'total_pages' => $total,
+                'char_count' => array_sum(array_map('strlen', $pages)),
+                'status' => $finished ? 'completed' : 'processing',
+            ];
+
+            if ($finished) {
+                $fullText = implode("\n", $pages);
+                $update = array_merge($update, $this->extractor->analyzeMetadata($fullText));
+
+                if (trim($fullText) === '') {
+                    $update['error_message'] = 'Ekstraksi menghasilkan teks kosong — kemungkinan PDF hasil scan (image-only) tanpa layer teks.';
+                }
+
+                $elapsed = (int) round(microtime(true) - $startedAt + ($document->processing_time ?: 0));
+                $update['processing_time'] = $elapsed;
+
+                AuditTrail::create([
+                    'user_id' => $document->user_id,
+                    'action' => 'advisor_document_ingested',
+                    'model_type' => AdvisorDocument::class,
+                    'model_id' => $document->id,
+                    'new_values' => [
+                        'name' => $document->name,
+                        'total_pages' => $total,
+                    ],
+                    'ip_address' => request()?->ip(),
+                    'user_agent' => request()?->userAgent(),
+                ]);
+
+                Log::info('AdvisorChat: document ingested', [
+                    'document_id' => $document->id,
+                    'pages' => $total,
+                    'chars' => $update['char_count'],
+                ]);
+            } else {
+                // Akumulasi waktu proses antar-chunk.
+                $update['processing_time'] = (int) round(microtime(true) - $startedAt + ($document->processing_time ?: 0));
+            }
+
+            $document->update($update);
+
+            return $document->fresh();
+        } catch (Throwable $e) {
+            Log::error('AdvisorChat: chunk processing failed', [
+                'document_id' => $document->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            $document->update([
+                'status' => 'failed',
+                'error_message' => $e->getMessage(),
+            ]);
+
+            return $document->fresh();
+        }
+    }
+
+    /**
      * Simpan file, ekstrak teks per halaman, dan persist ke knowledge base.
      * Tidak memanggil Gemini — murni ekstraksi lokal via pdftotext.
+     * (Alur sinkron satu-request — HANYA untuk pemanggilan CLI/debug;
+     * request HTTP sebaiknya memakai storeDocument + processDocumentChunk.)
      */
     public function ingestDocument(UploadedFile $file, int $userId): AdvisorDocument
     {
         set_time_limit(300);
 
         $originalName = $file->getClientOriginalName();
-        $safeName = Str::random(20) . '-' . Str::slug(pathinfo($originalName, PATHINFO_FILENAME)) . '.pdf';
+        $safeName = Str::random(20).'-'.Str::slug(pathinfo($originalName, PATHINFO_FILENAME)).'.pdf';
 
         $storedPath = $file->storeAs('strategic-advisor', $safeName, 'local');
         if (! $storedPath) {
@@ -73,10 +190,10 @@ class AdvisorChatService
         }
 
         $document = AdvisorDocument::create([
-            'user_id'    => $userId,
-            'name'       => $originalName,
-            'file_path'  => $storedPath,
-            'status'     => 'processing',
+            'user_id' => $userId,
+            'name' => $originalName,
+            'file_path' => $storedPath,
+            'status' => 'processing',
             'pages_json' => [],
         ]);
 
@@ -89,26 +206,26 @@ class AdvisorChatService
             $charCount = array_sum(array_map('strlen', $extraction['pages']));
 
             $document->update([
-                'document_type'    => $extraction['document_type'],
-                'company'          => $extraction['company'],
-                'period'           => $extraction['period'],
-                'total_pages'      => $extraction['total_pages'],
-                'char_count'       => $charCount,
-                'pages_json'       => $extraction['pages'],
-                'status'           => 'completed',
-                'error_message'    => $extraction['error_message'],
-                'processing_time'  => (int) round(microtime(true) - $started),
+                'document_type' => $extraction['document_type'],
+                'company' => $extraction['company'],
+                'period' => $extraction['period'],
+                'total_pages' => $extraction['total_pages'],
+                'char_count' => $charCount,
+                'pages_json' => $extraction['pages'],
+                'status' => 'completed',
+                'error_message' => $extraction['error_message'],
+                'processing_time' => (int) round(microtime(true) - $started),
             ]);
 
             AuditTrail::create([
-                'user_id'    => $userId,
-                'action'     => 'advisor_document_ingested',
+                'user_id' => $userId,
+                'action' => 'advisor_document_ingested',
                 'model_type' => AdvisorDocument::class,
-                'model_id'   => $document->id,
+                'model_id' => $document->id,
                 'new_values' => [
-                    'name'          => $originalName,
+                    'name' => $originalName,
                     'document_type' => $extraction['document_type'],
-                    'total_pages'   => $extraction['total_pages'],
+                    'total_pages' => $extraction['total_pages'],
                 ],
                 'ip_address' => request()?->ip(),
                 'user_agent' => request()?->userAgent(),
@@ -116,19 +233,19 @@ class AdvisorChatService
 
             Log::info('AdvisorChat: document ingested', [
                 'document_id' => $document->id,
-                'pages'       => $extraction['total_pages'],
-                'chars'       => $charCount,
+                'pages' => $extraction['total_pages'],
+                'chars' => $charCount,
             ]);
 
             return $document->fresh();
         } catch (Throwable $e) {
             Log::error('AdvisorChat: ingest failed', [
                 'document_id' => $document->id,
-                'error'       => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
 
             $document->update([
-                'status'        => 'failed',
+                'status' => 'failed',
                 'error_message' => $e->getMessage(),
             ]);
 
@@ -158,13 +275,13 @@ class AdvisorChatService
         set_time_limit(300);
 
         $message = AdvisorMessage::create([
-            'user_id'                => $userId,
-            'question'               => $question,
-            'citations_json'         => [],
-            'trends_json'            => [],
-            'recommendations_json'   => [],
+            'user_id' => $userId,
+            'question' => $question,
+            'citations_json' => [],
+            'trends_json' => [],
+            'recommendations_json' => [],
             'context_documents_json' => [],
-            'status'                 => 'processing',
+            'status' => 'processing',
         ]);
 
         try {
@@ -178,7 +295,7 @@ class AdvisorChatService
 
             if ($documents->isEmpty()) {
                 $message->update([
-                    'status'        => 'failed',
+                    'status' => 'failed',
                     'error_message' => 'Belum ada dokumen di knowledge base. Unggah dokumen terlebih dahulu sebelum bertanya.',
                 ]);
 
@@ -186,20 +303,20 @@ class AdvisorChatService
             }
 
             // 1) Retrieval: pilih potongan halaman paling relevan lintas dokumen.
-            $selected  = $this->retrieveRelevantChunks($question, $documents);
-            $context   = $this->buildContextBlocks($selected);
+            $selected = $this->retrieveRelevantChunks($question, $documents);
+            $context = $this->buildContextBlocks($selected);
             $docsnMeta = $documents->map(fn (AdvisorDocument $d) => [
-                'name'          => $d->name,
+                'name' => $d->name,
                 'document_type' => $d->document_type,
-                'company'       => $d->company,
-                'period'        => $d->period,
-                'total_pages'   => $d->total_pages,
+                'company' => $d->company,
+                'period' => $d->period,
+                'total_pages' => $d->total_pages,
             ])->all();
 
             // Snapshot konteks untuk audit trail.
             $contextSnapshot = collect($selected)
                 ->map(fn (array $c) => ['document' => $c['document'], 'page' => $c['page']])
-                ->unique(fn (array $c) => $c['document'] . ':' . $c['page'])
+                ->unique(fn (array $c) => $c['document'].':'.$c['page'])
                 ->values()
                 ->all();
 
@@ -214,66 +331,66 @@ class AdvisorChatService
                 ->reverse()
                 ->map(fn (AdvisorMessage $m) => [
                     'question' => Str::limit($m->question, 400),
-                    'answer'   => Str::limit($m->answer ?? '', 900),
+                    'answer' => Str::limit($m->answer ?? '', 900),
                 ])
                 ->all();
 
             // 3) Prompt + Gemini (grounded utk tren internet terkini).
-            $prompt  = $this->promptManager->generateAdvisorChatPrompt($question, $context, $docsnMeta, $history);
+            $prompt = $this->promptManager->generateAdvisorChatPrompt($question, $context, $docsnMeta, $history);
             $started = microtime(true);
-            $result  = $this->gemini->analyzeWithSearch($prompt);
+            $result = $this->gemini->analyzeWithSearch($prompt);
             $elapsed = round(microtime(true) - $started, 2);
 
             if (! ($result['success'] ?? false)) {
                 $message->update([
-                    'status'           => 'failed',
-                    'error_message'    => $result['error'] ?? 'Gemini call failed (unknown reason).',
-                    'processing_time'  => $result['processing_time'] ?? $elapsed,
-                    'raw_response_json'=> $result['raw_response'] ?? null,
-                    'grounded'         => (bool) ($result['grounded'] ?? false),
+                    'status' => 'failed',
+                    'error_message' => $result['error'] ?? 'Gemini call failed (unknown reason).',
+                    'processing_time' => $result['processing_time'] ?? $elapsed,
+                    'raw_response_json' => $result['raw_response'] ?? null,
+                    'grounded' => (bool) ($result['grounded'] ?? false),
                 ]);
 
                 Log::error('AdvisorChat: Gemini call failed', [
                     'message_id' => $message->id,
-                    'error'      => $result['error'] ?? null,
+                    'error' => $result['error'] ?? null,
                 ]);
 
                 return $message->fresh();
             }
 
-            $data     = $result['data'] ?? [];
+            $data = $result['data'] ?? [];
             $grounded = (bool) ($result['grounded'] ?? false);
 
             $message->update([
-                'answer'                 => $this->takeString($data['answer'] ?? null),
-                'citations_json'         => $this->normalizeCitations($data['citations'] ?? []),
-                'trends_json'            => $this->takeArray($data['trends'] ?? []) ?? [],
-                'recommendations_json'   => $this->takeArray($data['recommendations'] ?? []) ?? [],
+                'answer' => $this->takeString($data['answer'] ?? null),
+                'citations_json' => $this->normalizeCitations($data['citations'] ?? []),
+                'trends_json' => $this->takeArray($data['trends'] ?? []) ?? [],
+                'recommendations_json' => $this->takeArray($data['recommendations'] ?? []) ?? [],
                 'context_documents_json' => $contextSnapshot,
-                'raw_response_json'      => $result['raw_response'] ?? null,
-                'grounded'               => $grounded,
-                'status'                 => 'completed',
-                'error_message'          => $result['fallback_reason'] ?? null,
-                'processing_time'        => $result['processing_time'] ?? $elapsed,
+                'raw_response_json' => $result['raw_response'] ?? null,
+                'grounded' => $grounded,
+                'status' => 'completed',
+                'error_message' => $result['fallback_reason'] ?? null,
+                'processing_time' => $result['processing_time'] ?? $elapsed,
             ]);
 
             AuditTrail::create([
-                'user_id'    => $userId,
-                'action'     => 'advisor_question_asked',
+                'user_id' => $userId,
+                'action' => 'advisor_question_asked',
                 'model_type' => AdvisorMessage::class,
-                'model_id'   => $message->id,
+                'model_id' => $message->id,
                 'new_values' => [
-                    'question'   => Str::limit($question, 300),
-                    'grounded'   => $grounded,
-                    'context'    => $contextSnapshot,
+                    'question' => Str::limit($question, 300),
+                    'grounded' => $grounded,
+                    'context' => $contextSnapshot,
                 ],
                 'ip_address' => request()?->ip(),
                 'user_agent' => request()?->userAgent(),
             ]);
 
             Log::info('AdvisorChat: question answered', [
-                'message_id'    => $message->id,
-                'grounded'      => $grounded,
+                'message_id' => $message->id,
+                'grounded' => $grounded,
                 'context_pages' => count($contextSnapshot),
             ]);
 
@@ -281,12 +398,12 @@ class AdvisorChatService
         } catch (Throwable $e) {
             Log::error('AdvisorChat: exception', [
                 'message_id' => $message->id,
-                'error'      => $e->getMessage(),
-                'trace'      => Str::limit($e->getTraceAsString(), 1500),
+                'error' => $e->getMessage(),
+                'trace' => Str::limit($e->getTraceAsString(), 1500),
             ]);
 
             $message->update([
-                'status'        => 'failed',
+                'status' => 'failed',
                 'error_message' => $e->getMessage(),
             ]);
 
@@ -322,10 +439,10 @@ class AdvisorChatService
                 foreach ($this->splitToChunks($pageText) as $chunk) {
                     $chunks[] = [
                         'document_id' => $document->id,
-                        'document'    => $document->name,
-                        'page'        => $i + 1,
-                        'text'        => $chunk,
-                        'tokens'      => $this->extractor->tokenize($chunk),
+                        'document' => $document->name,
+                        'page' => $i + 1,
+                        'text' => $chunk,
+                        'tokens' => $this->extractor->tokenize($chunk),
                     ];
                 }
             }
@@ -349,7 +466,7 @@ class AdvisorChatService
         }
 
         // ---- Query vector ----
-        $qTf  = array_count_values($this->extractor->tokenize($question));
+        $qTf = array_count_values($this->extractor->tokenize($question));
         $qVec = [];
         $qNorm = 0.0;
         foreach ($qTf as $t => $f) {
@@ -364,9 +481,9 @@ class AdvisorChatService
 
         // ---- Cosine similarity per chunk ----
         foreach ($chunks as &$c) {
-            $tf   = array_count_values($c['tokens']);
+            $tf = array_count_values($c['tokens']);
             $norm = 0.0;
-            $vec  = [];
+            $vec = [];
             foreach ($tf as $t => $f) {
                 $w = $f * ($idf[$t] ?? 0.0);
                 $vec[$t] = $w;
@@ -420,17 +537,16 @@ class AdvisorChatService
                 }
                 $selected[] = [
                     'document_id' => $document->id,
-                    'document'    => $document->name,
-                    'page'        => 1,
-                    'text'        => Str::limit($firstPage, self::CHUNK_MAX_CHARS),
-                    'score'       => 0.0,
+                    'document' => $document->name,
+                    'page' => 1,
+                    'text' => Str::limit($firstPage, self::CHUNK_MAX_CHARS),
+                    'score' => 0.0,
                 ];
             }
         }
 
         // Urutkan berdasarkan dokumen lalu halaman agar konteks mengalir alami.
-        usort($selected, fn (array $a, array $b) =>
-            [$a['document'], $a['page']] <=> [$b['document'], $b['page']]);
+        usort($selected, fn (array $a, array $b) => [$a['document'], $a['page']] <=> [$b['document'], $b['page']]);
 
         return $selected;
     }
@@ -456,7 +572,7 @@ class AdvisorChatService
                 $chunks[] = rtrim($buffer);
                 $buffer = '';
             }
-            $buffer .= $line . "\n";
+            $buffer .= $line."\n";
             if (strlen($buffer) >= self::CHUNK_MAX_CHARS) {
                 $chunks[] = rtrim($buffer);
                 $buffer = '';
@@ -494,8 +610,8 @@ class AdvisorChatService
             }
             $out[] = [
                 'document' => (string) ($c['document'] ?? ''),
-                'page'     => (int) ($c['page'] ?? 0),
-                'quote'    => Str::limit((string) ($c['quote'] ?? ''), 400),
+                'page' => (int) ($c['page'] ?? 0),
+                'quote' => Str::limit((string) ($c['quote'] ?? ''), 400),
             ];
         }
 
