@@ -6,6 +6,7 @@ use App\AI\GeminiService;
 use App\AI\PromptManager;
 use App\Models\AdvisorDocument;
 use App\Models\AdvisorMessage;
+use App\Models\AdvisorSession;
 use App\Models\AuditTrail;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
@@ -269,13 +270,16 @@ class AdvisorChatService
     /**
      * Jawab pertanyaan user berdasarkan seluruh dokumen di knowledge base,
      * lengkap dengan sitasi dokumen+halaman dan tren internet terkini.
+     * Bila $session diberikan, riwayat percakapan diambil dari sesi tersebut
+     * (konteks follow-up question ala ChatGPT).
      */
-    public function ask(string $question, int $userId): AdvisorMessage
+    public function ask(string $question, int $userId, ?AdvisorSession $session = null): AdvisorMessage
     {
         set_time_limit(300);
 
         $message = AdvisorMessage::create([
             'user_id' => $userId,
+            'advisor_session_id' => $session?->id,
             'question' => $question,
             'citations_json' => [],
             'trends_json' => [],
@@ -321,10 +325,16 @@ class AdvisorChatService
                 ->all();
 
             // 2) Riwayat percakapan singkat agar pertanyaan lanjutan dipahami.
-            // Kolom besar (raw_response_json) tidak diambil agar hemat memori.
-            $history = AdvisorMessage::query()
+            // Diambil dari SESI aktif bila ada, jika tidak dari seluruh
+            // pesan user. Kolom besar (raw_response_json) tidak diambil
+            // agar hemat memori.
+            $historyQuery = AdvisorMessage::query()
                 ->where('user_id', $userId)
-                ->where('status', 'completed')
+                ->where('status', 'completed');
+            if ($session) {
+                $historyQuery->where('advisor_session_id', $session->id);
+            }
+            $history = $historyQuery
                 ->latest()
                 ->limit(3)
                 ->get(['id', 'question', 'answer', 'created_at'])
@@ -374,6 +384,8 @@ class AdvisorChatService
                 'processing_time' => $result['processing_time'] ?? $elapsed,
             ]);
 
+            $this->touchSession($session, $question);
+
             AuditTrail::create([
                 'user_id' => $userId,
                 'action' => 'advisor_question_asked',
@@ -409,6 +421,38 @@ class AdvisorChatService
 
             return $message->fresh();
         }
+    }
+
+    // =========================================================================
+    // 3) SESSION MANAGEMENT (chat ala ChatGPT)
+    // =========================================================================
+
+    /** Buat sesi chat baru milik user. */
+    public function createSession(int $userId, ?string $title = null): AdvisorSession
+    {
+        return AdvisorSession::create([
+            'user_id' => $userId,
+            'title' => $title ?? 'Percakapan baru',
+            'last_activity_at' => now(),
+        ]);
+    }
+
+    /** Update counter, judul (dari pertanyaan pertama), dan aktivitas sesi. */
+    protected function touchSession(?AdvisorSession $session, string $question): void
+    {
+        if (! $session) {
+            return;
+        }
+
+        $session->message_count += 1;
+        $session->last_activity_at = now();
+
+        // Pertanyaan pertama menjadi judul percakapan.
+        if ($session->title === 'Percakapan baru' || trim($session->title) === '') {
+            $session->title = Str::limit($question, 60);
+        }
+
+        $session->save();
     }
 
     // =========================================================================

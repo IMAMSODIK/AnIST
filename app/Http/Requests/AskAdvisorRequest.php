@@ -14,7 +14,8 @@ class AskAdvisorRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'question' => ['required', 'string', 'min:5', 'max:2000'],
+            'question'    => ['required', 'string', 'min:5', 'max:2000'],
+            'session_id'  => ['nullable', 'integer', 'exists:advisor_sessions,id'],
         ];
     }
 

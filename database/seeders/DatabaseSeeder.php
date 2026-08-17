@@ -16,15 +16,17 @@ class DatabaseSeeder extends Seeder
             [
                 'name' => 'Administrator',
                 'password' => Hash::make('password'),
+                'role' => 'admin',
             ]
         );
 
-        // Create demo user
+        // Create demo user (hanya boleh mengakses Strategic Advisor)
         User::firstOrCreate(
             ['email' => 'demo@kpiadvisor.com'],
             [
                 'name' => 'Demo User',
                 'password' => Hash::make('password'),
+                'role' => 'user',
             ]
         );
 

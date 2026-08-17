@@ -36,8 +36,29 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->midd
 |--------------------------------------------------------------------------
 | Authenticated Routes
 |--------------------------------------------------------------------------
+|
+| Role 'user' HANYA boleh mengakses Strategic Advisor (chat + dokumen +
+| sesi). Semua route lain (dashboard, master data, reports, settings,
+| dll.) khusus admin.
 */
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'role:user,admin'])->group(function () {
+    // Strategic Advisor (knowledge base dokumen + Q&A dengan sitasi & tren)
+    Route::get('/strategic-advisor', [StrategicAdvisorController::class, 'index'])->name('strategic-advisor.index');
+    Route::get('/strategic-advisor/sessions', [StrategicAdvisorController::class, 'sessionsIndex'])->name('strategic-advisor.sessions.index');
+    Route::post('/strategic-advisor/sessions', [StrategicAdvisorController::class, 'storeSession'])->name('strategic-advisor.sessions.store');
+    Route::get('/strategic-advisor/sessions/{session}', [StrategicAdvisorController::class, 'showSession'])->name('strategic-advisor.sessions.show');
+    Route::delete('/strategic-advisor/sessions/{session}', [StrategicAdvisorController::class, 'destroySession'])->name('strategic-advisor.sessions.destroy');
+    Route::get('/strategic-advisor/documents', [StrategicAdvisorController::class, 'documents'])->name('strategic-advisor.documents.index');
+    Route::post('/strategic-advisor/documents', [StrategicAdvisorController::class, 'storeDocument'])->name('strategic-advisor.documents.store');
+
+    Route::post('/strategic-advisor/documents/{document}/process', [StrategicAdvisorController::class, 'processDocument'])->name('strategic-advisor.documents.process');
+    Route::delete('/strategic-advisor/documents/{document}', [StrategicAdvisorController::class, 'destroyDocument'])->name('strategic-advisor.documents.destroy');
+    Route::post('/strategic-advisor/ask', [StrategicAdvisorController::class, 'ask'])->name('strategic-advisor.ask');
+    Route::get('/strategic-advisor/history', [StrategicAdvisorController::class, 'history'])->name('strategic-advisor.history');
+    Route::get('/strategic-advisor/messages/{advisorMessage}', [StrategicAdvisorController::class, 'show'])->name('strategic-advisor.show');
+});
+
+Route::middleware(['auth', 'role:admin'])->group(function () {
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -67,16 +88,6 @@ Route::middleware('auth')->group(function () {
     // AI Analysis
     Route::get('/ai-analysis', [AiAnalysisController::class, 'index'])->name('ai-analysis.index');
     Route::get('/ai-analysis/{aiResult}', [AiAnalysisController::class, 'show'])->name('ai-analysis.show');
-
-    // Strategic Advisor (knowledge base dokumen + Q&A dengan sitasi & tren)
-    Route::get('/strategic-advisor', [StrategicAdvisorController::class, 'index'])->name('strategic-advisor.index');
-    Route::post('/strategic-advisor/documents', [StrategicAdvisorController::class, 'storeDocument'])->name('strategic-advisor.documents.store');
-
-    Route::post('/strategic-advisor/documents/{document}/process', [StrategicAdvisorController::class, 'processDocument'])->name('strategic-advisor.documents.process');
-    Route::delete('/strategic-advisor/documents/{document}', [StrategicAdvisorController::class, 'destroyDocument'])->name('strategic-advisor.documents.destroy');
-    Route::post('/strategic-advisor/ask', [StrategicAdvisorController::class, 'ask'])->name('strategic-advisor.ask');
-    Route::get('/strategic-advisor/history', [StrategicAdvisorController::class, 'history'])->name('strategic-advisor.history');
-    Route::get('/strategic-advisor/messages/{advisorMessage}', [StrategicAdvisorController::class, 'show'])->name('strategic-advisor.show');
 
     // Reports
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');

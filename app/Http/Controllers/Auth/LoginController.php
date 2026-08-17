@@ -22,6 +22,13 @@ class LoginController extends Controller
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
+
+            // User ber-role 'user' hanya boleh mengakses Strategic Advisor,
+            // jadi langsung arahkan ke sana. Admin mengikuti flow normal.
+            if (Auth::user()->role === 'user') {
+                return redirect()->intended(route('strategic-advisor.index'));
+            }
+
             return redirect()->intended(route('dashboard'));
         }
 

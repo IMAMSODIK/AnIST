@@ -31,6 +31,7 @@ class RegisterController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => $validated['password'],
+            'role' => 'user',
         ]);
 
         Auth::login($user);
@@ -54,6 +55,8 @@ class RegisterController extends Controller
             ]);
         }
 
-        return redirect()->route('dashboard');
+        return redirect()->route(Auth::user()->role === 'user'
+            ? 'strategic-advisor.index'
+            : 'dashboard');
     }
 }

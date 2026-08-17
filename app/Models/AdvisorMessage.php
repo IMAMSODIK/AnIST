@@ -11,6 +11,7 @@ class AdvisorMessage extends Model
 
     protected $fillable = [
         'user_id',
+        'advisor_session_id',
         'question',
         'answer',
         'citations_json',
@@ -40,6 +41,11 @@ class AdvisorMessage extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function session(): BelongsTo
+    {
+        return $this->belongsTo(AdvisorSession::class, 'advisor_session_id');
     }
 
     public function getCitationsArrayAttribute(): array

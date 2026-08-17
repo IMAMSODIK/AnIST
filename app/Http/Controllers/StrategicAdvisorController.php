@@ -6,6 +6,7 @@ use App\Http\Requests\AskAdvisorRequest;
 use App\Http\Requests\StoreAdvisorDocumentRequest;
 use App\Models\AdvisorDocument;
 use App\Models\AdvisorMessage;
+use App\Models\AdvisorSession;
 use App\Services\AdvisorChatService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,10 +16,13 @@ use Illuminate\Http\Request;
  *
  *   1. User mengunggah beberapa dokumen (tiap file maks 50MB) → sistem
  *      mengekstrak teks PER HALAMAN dan menyimpannya (ingest, tanpa AI).
- *   2. User mengetik pertanyaan / permintaan saran → sistem melakukan
- *      retrieval halaman relevan lintas dokumen, lalu Gemini menjawab
- *      DENGAN sitasi "dokumen X halaman Y" + tren internet terkini
- *      (Google Search grounding).
+ *   2. User mengajukan pertanyaan dalam SESI CHAT (ala ChatGPT) →
+ *      sistem melakukan retrieval halaman relevan lintas dokumen, lalu
+ *      Gemini menjawab DENGAN sitasi "dokumen X halaman Y" + tren
+ *      internet terkini (Google Search grounding).
+ *
+ * Halaman /strategic-advisor memakai layout chat mandiri (tanpa sidebar
+ * aplikasi) dan dibuka di tab baru dari menu sidebar utama.
  */
 class StrategicAdvisorController extends Controller
 {
@@ -27,10 +31,119 @@ class StrategicAdvisorController extends Controller
     ) {}
 
     /**
-     * Halaman utama: knowledge base dokumen + panel chat Q&A
-     * (pesan terakhir dimuat sebagai state awal Alpine).
+     * Halaman chat standalone (ala ChatGPT): sidebar riwayat sesi milik
+     * user + area chat. Parameter ?session={id} membuka sesi tertentu.
      */
-    public function index()
+    public function index(Request $request)
+    {
+        $sessions = AdvisorSession::where('user_id', $request->user()->id)
+            ->orderByDesc('last_activity_at')
+            ->limit(50)
+            ->get(['id', 'title', 'message_count', 'last_activity_at']);
+
+        // Sesi aktif: dari query string, atau sesi terbaru.
+        $activeSession = null;
+        $messages = collect();
+        $documentsCount = AdvisorDocument::where('status', 'completed')->count();
+
+        if ($request->filled('session')) {
+            $activeSession = AdvisorSession::where('user_id', $request->user()->id)
+                ->find($request->integer('session'));
+        } else {
+            $activeSession = AdvisorSession::where('user_id', $request->user()->id)
+                ->orderByDesc('last_activity_at')
+                ->first();
+        }
+
+        if ($activeSession) {
+            // Tanpa raw_response_json (kolom besar) — hemat memori.
+            $messages = AdvisorMessage::where('advisor_session_id', $activeSession->id)
+                ->oldest()
+                ->limit(100)
+                ->get([
+                    'id', 'question', 'answer', 'citations_json', 'trends_json',
+                    'recommendations_json', 'grounded', 'status', 'error_message',
+                    'processing_time', 'created_at',
+                ]);
+        }
+
+        $sessionsJson = $sessions->map(fn (AdvisorSession $s) => $this->sessionPayload($s))->values()->all();
+        $messagesJson = $messages->map(fn (AdvisorMessage $m) => $this->messagePayload($m, false))->values()->all();
+
+        return view('strategic-advisor.chat', [
+            'sessionsJson'    => $sessionsJson,
+            'messagesJson'    => $messagesJson,
+            'activeSessionId' => $activeSession?->id,
+            'documentsCount'  => $documentsCount,
+        ]);
+    }
+
+    /** JSON: daftar sesi chat milik user terurut aktivitas terbaru. */
+    public function sessionsIndex(Request $request): JsonResponse
+    {
+        $sessions = AdvisorSession::where('user_id', $request->user()->id)
+            ->orderByDesc('last_activity_at')
+            ->limit(50)
+            ->get(['id', 'title', 'message_count', 'last_activity_at']);
+
+        return response()->json([
+            'success' => true,
+            'sessions' => $sessions->map(fn (AdvisorSession $s) => $this->sessionPayload($s))->values()->all(),
+        ]);
+    }
+
+    /** JSON: buat sesi chat baru. */
+    public function storeSession(Request $request): JsonResponse
+    {
+        $session = $this->service->createSession($request->user()->id);
+
+        return response()->json([
+            'success' => true,
+            'session' => $this->sessionPayload($session),
+        ], 201);
+    }
+
+    /** JSON: isi satu sesi (daftar pesan). */
+    public function showSession(Request $request, AdvisorSession $session): JsonResponse
+    {
+        if ($session->user_id !== $request->user()->id) {
+            abort(403, 'Sesi bukan milik Anda.');
+        }
+
+        $messages = AdvisorMessage::where('advisor_session_id', $session->id)
+            ->oldest()
+            ->limit(100)
+            ->get([
+                'id', 'question', 'answer', 'citations_json', 'trends_json',
+                'recommendations_json', 'grounded', 'status', 'error_message',
+                'processing_time', 'created_at',
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'session' => $this->sessionPayload($session->fresh()),
+            'messages' => $messages->map(fn (AdvisorMessage $m) => $this->messagePayload($m, false))->values()->all(),
+        ]);
+    }
+
+    /** Hapus sesi chat (beserta pesan-pesannya). */
+    public function destroySession(Request $request, AdvisorSession $session): JsonResponse
+    {
+        if ($session->user_id !== $request->user()->id) {
+            abort(403, 'Sesi bukan milik Anda.');
+        }
+
+        $session->messages()->delete();
+        $session->delete();
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Halaman "Dokumen / Knowledge Base" — upload dokumen + daftar dokumen
+     * terpaginasi. Terpisah dari halaman chat Q&A.
+     */
+    public function documents()
     {
         // PENTING: select kolom ringan SAJA (tanpa pages_json yang bisa
         // berukuran MB per baris). SELECT * + ORDER BY pada kolom JSON besar
@@ -45,21 +158,6 @@ class StrategicAdvisorController extends Controller
             ], 'doc_page')
             ->withQueryString();
 
-        // Idem: tanpa raw_response_json (bisa besar) saat ORDER BY + LIMIT.
-        $messages = AdvisorMessage::with('user')
-            ->where('user_id', auth()->id())
-            ->latest()
-            ->limit(15)
-            ->get([
-                'id', 'user_id', 'question', 'answer', 'citations_json',
-                'trends_json', 'recommendations_json', 'grounded', 'status',
-                'error_message', 'processing_time', 'created_at',
-            ])
-            ->reverse()
-            ->values();
-
-        // Serialisasi JSON di controller — Blade @json() tidak mendukung
-        // ekspresi multi-baris.
         $documentsJson = $documents->getCollection()->map(fn (AdvisorDocument $d) => [
             'id' => $d->id,
             'name' => $d->name,
@@ -74,22 +172,7 @@ class StrategicAdvisorController extends Controller
             'delete_url' => route('strategic-advisor.documents.destroy', $d),
         ])->values()->all();
 
-        $messagesJson = $messages->map(fn (AdvisorMessage $m) => [
-            'id' => $m->id,
-            'question' => $m->question,
-            'answer' => $m->answer,
-            'citations' => $m->citations_array,
-            'trends' => $m->trends_array,
-            'recommendations' => $m->recommendations_array,
-            'grounded' => (bool) $m->grounded,
-            'status' => $m->status,
-            'error_message' => $m->error_message,
-            'processing_time' => $m->processing_time !== null ? (float) $m->processing_time : null,
-            'created_at' => $m->created_at?->diffForHumans(),
-            'pending' => false,
-        ])->values()->all();
-
-        return view('strategic-advisor.index', compact('documents', 'messages', 'documentsJson', 'messagesJson'));
+        return view('strategic-advisor.documents', compact('documents', 'documentsJson'));
     }
 
     /**
@@ -164,43 +247,78 @@ class StrategicAdvisorController extends Controller
         }
 
         return redirect()
-            ->route('strategic-advisor.index')
+            ->route('strategic-advisor.documents.index')
             ->with('success', 'Dokumen "'.$document->name.'" dihapus dari knowledge base.');
     }
 
     /**
-     * JSON endpoint untuk bertanya / meminta saran. Retrieval + Gemini
-     * grounded call bisa memakan 15-60 detik.
+     * JSON endpoint untuk bertanya / meminta saran dalam sesi chat.
+     * Retrieval + Gemini grounded call bisa memakan 15-60 detik.
      */
     public function ask(AskAdvisorRequest $request): JsonResponse
     {
         set_time_limit(300);
 
+        $session = null;
+        if ($request->filled('session_id')) {
+            $session = AdvisorSession::where('user_id', $request->user()->id)
+                ->find($request->input('session_id'));
+
+            if (! $session) {
+                return response()->json([
+                    'success' => false,
+                    'status' => 'failed',
+                    'error_message' => 'Sesi tidak ditemukan.',
+                ], 404);
+            }
+        }
+
         $message = $this->service->ask(
             $request->input('question'),
             $request->user()->id,
+            $session,
         );
 
         return response()->json([
             'success' => $message->status === 'completed',
             'status' => $message->status,
-            'message' => [
-                'id' => $message->id,
-                'question' => $message->question,
-                'answer' => $message->answer,
-                'citations' => $message->citations_array,
-                'trends' => $message->trends_array,
-                'recommendations' => $message->recommendations_array,
-                'grounded' => (bool) $message->grounded,
-                'status' => $message->status,
-                'error_message' => $message->error_message,
-                'processing_time' => $message->processing_time !== null
-                                        ? (float) $message->processing_time
-                                        : null,
-                'created_at' => $message->created_at?->diffForHumans(),
-            ],
+            'message' => $this->messagePayload($message, false),
+            'session' => $session ? $this->sessionPayload($session->fresh()) : null,
             'error_message' => $message->error_message,
         ], 200);
+    }
+
+    /** Bentuk payload sesi untuk frontend. */
+    private function sessionPayload(AdvisorSession $session): array
+    {
+        return [
+            'id' => $session->id,
+            'title' => $session->title,
+            'message_count' => $session->message_count,
+            'last_activity' => $session->last_activity_at?->diffForHumans()
+                ?? $session->created_at?->diffForHumans(),
+        ];
+    }
+
+    /** Bentuk payload pesan untuk frontend. */
+    private function messagePayload(AdvisorMessage $message, bool $pending): array
+    {
+        return [
+            'id' => $message->id,
+            'question' => $message->question,
+            'answer' => $message->answer,
+            'citations' => $message->citations_array,
+            'trends' => $message->trends_array,
+            'recommendations' => $message->recommendations_array,
+            'grounded' => (bool) $message->grounded,
+            'status' => $message->status,
+            'error_message' => $message->error_message,
+            'processing_time' => $message->processing_time !== null
+                                    ? (float) $message->processing_time
+                                    : null,
+            'created_at' => $message->created_at?->diffForHumans(),
+            'pending' => $pending,
+        ];
     }
 
     /**
