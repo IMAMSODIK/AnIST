@@ -214,6 +214,12 @@ class DocumentExtractorService
             array_pop($pages);
         }
 
+        // Sanitasi UTF-8: teks hasil ekstraksi (terutama PDF hasil decrypt /
+        // embedded font rusak) dapat mengandung sekuens byte invalid yang
+        // membuat json_encode gagal ("Malformed UTF-8") saat disimpan ke
+        // advisor_documents.pages_json.
+        $pages = array_map($this->sanitizeUtf8(...), $pages);
+
         $totalPages = $this->countPdfPages($absPath);
         if ($totalPages === 0 || $totalPages === count($pages) - 1) {
             $totalPages = max(count($pages), 1);
@@ -869,6 +875,35 @@ class DocumentExtractorService
         $root = storage_path('app/public');
 
         return rtrim($root, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.ltrim($path, DIRECTORY_SEPARATOR);
+    }
+
+    /**
+     * Pastikan string adalah UTF-8 valid yang aman untuk json_encode.
+     *
+     * Beberapa PDF (hasil decrypt, embedded font rusak, glyph anomali)
+     * menghasilkan sekuens byte yang bukan UTF-8 valid. Strategi berlapis:
+     *  1. Bila sudah valid -> langsung kembali (cepak, kasus umum).
+     *  2. iconv UTF-8//IGNORE -> buang byte invalid.
+     *  3. Masih invalid -> anggap Windows-1252/Latin-1 lalu konversi.
+     * Control character (kecuali \n \t \x0C) juga dibuang karena JSON
+     * tidak dapat menyandikannya dengan aman.
+     */
+    protected function sanitizeUtf8(string $text): string
+    {
+        // Buang control characters kecuali LF, TAB, dan form-feed.
+        $text = preg_replace('/[^\P{Cc}\n\t\x0C]/u', '', $text) ?? $text;
+
+        if ($text !== '' && ! mb_check_encoding($text, 'UTF-8')) {
+            $clean = @iconv('UTF-8', 'UTF-8//IGNORE', $text);
+            if (is_string($clean) && $clean !== '' && mb_check_encoding($clean, 'UTF-8')) {
+                return $clean;
+            }
+
+            // Byte sisa kemungkinan teks single-byte (Latin/CP1252).
+            return mb_convert_encoding($text, 'UTF-8', 'Windows-1252');
+        }
+
+        return $text;
     }
 
     /** Public helper: dump raw text dari PDF (untuk keperluan debug command). */
