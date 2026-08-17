@@ -403,39 +403,53 @@ function advisorPage() {
                 });
             }
         },
-        // Fase proses backend yang ditampilkan bergilir selama ekstraksi
-        // (server tidak streaming progress, jadi ini indikator "berjalan").
-        uploadPhases: [
-            'Mengunggah file\u2026',
-            'Membaca struktur PDF\u2026',
-            'Ekstraksi teks per halaman\u2026',
-            'Sanitasi & analisis dokumen\u2026',
-            'Menyimpan ke knowledge base\u2026',
-        ],
-        startProgress(f) {
-            this.stopProgress(f);
-            f.progress = 0;
-            f._phaseIdx = 0;
-            f.phase = this.uploadPhases[0];
-            // Rotasi label fase tiap 3 detik hingga fase terakhir.
-            f._phaseTimer = setInterval(() => {
-                f._phaseIdx = Math.min((f._phaseIdx ?? 0) + 1, this.uploadPhases.length - 1);
-                f.phase = this.uploadPhases[f._phaseIdx];
-            }, 3000);
-            // Easing menuju 92% — tidak pernah mencapai 100% sebelum respons
-            // server, agar terasa progresif namun jujur (belum selesai).
-            f._progTimer = setInterval(() => {
-                const remaining = 92 - f.progress;
-                if (remaining > 0.4) {
-                    f.progress = Math.min(92, f.progress + remaining * 0.07 + 0.25);
-                }
-            }, 200);
+        // Fase & bobot progres: upload jaringan 2-15%, ekstraksi 15-97%,
+        // finalisasi 97-100%. Persentase NYATA di setiap tahap.
+        setStage(f, pct, label) {
+            f.progress = Math.max(f.progress, Math.min(pct, 97));
+            if (label) f.phase = label;
         },
-        stopProgress(f, done) {
-            if (f._phaseTimer) { clearInterval(f._phaseTimer); f._phaseTimer = null; }
-            if (f._progTimer)  { clearInterval(f._progTimer);  f._progTimer = null; }
-            f.phase = '';
-            if (done) f.progress = 100;
+        /** Upload via XHR agar progres jaringan NYATA terlihat
+         *  (fetch tidak menyediakan upload progress event). */
+        uploadFileXhr(f) {
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '{!! route('strategic-advisor.documents.store') !!}');
+                xhr.setRequestHeader('Accept', 'application/json');
+                xhr.responseType = 'json';
+                xhr.upload.onprogress = (e) => {
+                    if (! e.lengthComputable) return;
+                    const pct = Math.round((e.loaded / e.total) * 100);
+                    this.setStage(f, 2 + pct * 0.13, 'Mengunggah file\u2026 ' + pct + '%');
+                };
+                xhr.onload = () => resolve({
+                    ok: xhr.status >= 200 && xhr.status < 300,
+                    status: xhr.status,
+                    data: xhr.response || {},
+                });
+                xhr.onerror = () => reject(new Error('Network gagal saat mengunggah.'));
+                xhr.ontimeout = () => reject(new Error('Upload timeout.'));
+
+                const fd = new FormData();
+                fd.append('file', f.file);
+                fd.append('_token', this.csrfToken());
+                xhr.send(fd);
+            });
+        },
+        /** Creep halus di antara dua poll (server memproses ~8 detik per
+         *  chunk) supaya bar tidak mati suri — maksimum +4% di atas nilai
+         *  nyata terakhir, tidak pernah melewati 92%. */
+        startCreep(f) {
+            this.stopCreep(f);
+            f._creepBase = f.progress;
+            f._creepTimer = setInterval(() => {
+                if (f.progress < Math.min(f._creepBase + 4, 92)) {
+                    f.progress += 0.15;
+                }
+            }, 250);
+        },
+        stopCreep(f) {
+            if (f._creepTimer) { clearInterval(f._creepTimer); f._creepTimer = null; }
         },
         async startUpload() {
             if (this.uploadQueue.length === 0 || this.uploading) return;
@@ -445,39 +459,28 @@ function advisorPage() {
 
             // Iterasi via indeks: this.uploadQueue[i] mengembalikan referensi
             // ter-proxy Alpine, sehingga mutasi f.step/f.error memicu re-render.
-            // (for...of pada array reaktif juga me-return proxy via iterator,
-            // tapi akses indeks eksplisit lebih eksplisit & aman.)
             for (let i = 0; i < this.uploadQueue.length; i++) {
                 const f = this.uploadQueue[i];
                 if (f.step === 'completed') continue;
                 f.step = 'uploading';
                 f.error = null;
-                this.startProgress(f);
-
-                const fd = new FormData();
-                fd.append('file', f.file);
-                fd.append('_token', this.csrfToken());
+                f.progress = 0;
+                f.phase = 'Menyiapkan\u2026';
 
                 try {
-                    // TAHAP 1: upload cepat — server hanya menyimpan file
-                    // (menghindari HTTP 504 gateway timeout).
-                    const resp = await fetch('{!! route('strategic-advisor.documents.store') !!}', {
-                        method: 'POST',
-                        body: fd,
-                        headers: { 'Accept': 'application/json' },
-                    });
-                    const data = await resp.json().catch(() => ({}));
+                    // TAHAP 1 (2-15%): upload file dengan progres jaringan
+                    // nyata via XHR — server hanya menyimpan file.
+                    const { ok, status, data } = await this.uploadFileXhr(f);
 
-                    if (! (resp.ok && data.document)) {
-                        this.stopProgress(f);
+                    if (! (ok && data.document)) {
                         f.step = 'failed';
-                        f.error = data.error_message || data.message || ('HTTP ' + resp.status);
+                        f.error = data.error_message || data.message || ('HTTP ' + status);
                         continue;
                     }
 
-                    // TAHAP 2: polling proses chunk demi chunk sampai selesai.
-                    // Tiap panggilan hanya ~8 detik di server sehingga tidak
-                    // pernah menabrak proxy timeout shared hosting.
+                    // TAHAP 2 (15-97%): polling proses chunk demi chunk sampai
+                    // selesai. Tiap panggilan hanya ~8 detik di server sehingga
+                    // tidak pernah menabrak proxy timeout shared hosting.
                     const processUrl = data.process_url;
                     let guard = 0;
                     let done = false;
@@ -485,7 +488,7 @@ function advisorPage() {
                     while (! done) {
                         guard++;
                         if (guard > 3000) {
-                            this.stopProgress(f);
+                            this.stopCreep(f);
                             f.step = 'failed';
                             f.error = 'Proses terlalu lama — dibatalkan.';
                             break;
@@ -493,6 +496,8 @@ function advisorPage() {
 
                         let pd;
                         try {
+                            this.setStage(f, 15, f.phase || 'Membaca struktur PDF\u2026');
+                            this.startCreep(f);
                             const pr = await fetch(processUrl, {
                                 method: 'POST',
                                 headers: {
@@ -501,14 +506,15 @@ function advisorPage() {
                                     'X-Requested-With': 'XMLHttpRequest',
                                 },
                             });
+                            this.stopCreep(f);
                             pd = await pr.json().catch(() => ({}));
                             if (! pr.ok) {
-                                this.stopProgress(f);
                                 f.step = 'failed';
                                 f.error = pd.error_message || pd.message || ('HTTP ' + pr.status);
                                 break;
                             }
                         } catch (err) {
+                            this.stopCreep(f);
                             // Gangguan jaringan sesaat: tunggu & ulangi.
                             await new Promise(r => setTimeout(r, 1500));
                             continue;
@@ -517,35 +523,31 @@ function advisorPage() {
                         const pagesDone = pd.pages_done || 0;
                         const pagesTotal = pd.total_pages || 0;
 
-                        if (pagesTotal > 0) {
-                            // Progres NYATA berdasarkan halaman terekstrak —
-                            // hentikan easing/label palsu.
-                            this.stopProgress(f);
-                            f.progress = Math.min(92, 5 + (pagesDone / pagesTotal) * 87);
-                            f.phase = 'Ekstraksi halaman ' + pagesDone + ' / ' + pagesTotal + '\u2026';
-                        }
-
                         if (pd.status === 'completed') {
-                            this.stopProgress(f, true);
+                            f.progress = 100;
+                            f.phase = 'Tersimpan di knowledge base\u2713';
                             f.step = 'completed';
                             if (pd.document) {
-                                // ganti entry yang sama (bila unshift di awal)
                                 this.documents = this.documents.filter(x => x.id !== pd.document.id);
                                 this.documents.unshift(pd.document);
                             }
                             done = true;
                         } else if (pd.status === 'failed') {
-                            this.stopProgress(f);
                             f.step = 'failed';
                             f.error = pd.error_message || pd.document?.error_message || 'Proses gagal.';
                             done = true;
+                        } else if (pagesTotal > 0) {
+                            // Progres NYATA: n dari total halaman -> 15-97%.
+                            this.setStage(f, 15 + (pagesDone / pagesTotal) * 82,
+                                'Ekstraksi halaman ' + pagesDone + ' / ' + pagesTotal + '\u2026');
+                            await new Promise(r => setTimeout(r, 300));
                         } else {
-                            // masih 'processing' — jeda kecil lalu poll lagi
+                            this.setStage(f, 15, 'Membaca struktur PDF\u2026');
                             await new Promise(r => setTimeout(r, 300));
                         }
                     }
                 } catch (err) {
-                    this.stopProgress(f);
+                    this.stopCreep(f);
                     f.step = 'failed';
                     f.error = (err && err.message) || 'Network gagal — cek koneksi.';
                 }
