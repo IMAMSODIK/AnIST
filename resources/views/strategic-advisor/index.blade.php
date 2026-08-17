@@ -28,6 +28,42 @@
 @media (prefers-color-scheme: dark) {
     .answer-md code { background: rgba(255,255,255,.1); }
 }
+
+/* ==== Animasi progres upload dokumen ==== */
+@keyframes progress-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+.progress-bar-anim {
+    background-size: 200% 100%;
+    animation: progress-shimmer 1.4s linear infinite;
+    transition: width .25s ease-out;
+}
+@keyframes fade-slide-up {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.fade-slide-up { animation: fade-slide-up .3s ease-out both; }
+@keyframes pop-check {
+    0%   { transform: scale(.4); opacity: 0; }
+    70%  { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+.pop-check { animation: pop-check .35s ease-out both; }
+
+/* ==== Typing indicator saat menunggu jawaban Gemini ==== */
+.typing-dots { display: inline-flex; gap: 4px; align-items: center; }
+.typing-dots span {
+    width: 6px; height: 6px; border-radius: 9999px;
+    background: currentColor;
+    animation: typing-bounce 1.2s infinite ease-in-out;
+}
+.typing-dots span:nth-child(2) { animation-delay: .15s; }
+.typing-dots span:nth-child(3) { animation-delay: .3s; }
+@keyframes typing-bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: .35; }
+    30%           { transform: translateY(-4px); opacity: 1; }
+}
 </style>
 <div class="max-w-7xl mx-auto space-y-6" x-data="advisorPage()" x-cloak>
 
@@ -84,23 +120,43 @@
                     {{-- Upload queue --}}
                     <div x-show="uploadQueue.length > 0" x-transition class="space-y-2">
                         <template x-for="f in uploadQueue" :key="f.id">
-                            <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-700/30 rounded-xl px-3 py-2 border border-slate-100 dark:border-slate-700">
-                                <div class="flex items-center gap-2 min-w-0">
-                                    <span class="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                                          :class="{
-                                              'bg-slate-200 dark:bg-slate-600 text-slate-500': f.step === 'queueing',
-                                              'bg-amber-100 dark:bg-amber-900/40 text-amber-600': f.step === 'uploading',
-                                              'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600': f.step === 'completed',
-                                              'bg-rose-100 dark:bg-rose-900/40 text-rose-600': f.step === 'failed'
-                                          }">
-                                        <svg x-show="f.step === 'uploading'" class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="3" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke-width="3" class="opacity-75"/></svg>
-                                        <svg x-show="f.step === 'completed'" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                                        <svg x-show="f.step === 'failed'" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
-                                        <span x-show="f.step === 'queueing'" class="text-[10px] font-bold">•</span>
-                                    </span>
-                                    <span class="text-xs text-slate-700 dark:text-slate-200 truncate" x-text="f.file.name"></span>
+                            <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl px-3 py-2 border border-slate-100 dark:border-slate-700 fade-slide-up">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        <span class="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                                              :class="{
+                                                  'bg-slate-200 dark:bg-slate-600 text-slate-500': f.step === 'queueing',
+                                                  'bg-amber-100 dark:bg-amber-900/40 text-amber-600': f.step === 'uploading',
+                                                  'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600': f.step === 'completed',
+                                                  'bg-rose-100 dark:bg-rose-900/40 text-rose-600': f.step === 'failed'
+                                              }">
+                                            <svg x-show="f.step === 'uploading'" class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="3" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke-width="3" class="opacity-75"/></svg>
+                                            <svg x-show="f.step === 'completed'" class="w-3 h-3 pop-check" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                            <svg x-show="f.step === 'failed'" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
+                                            <span x-show="f.step === 'queueing'" class="text-[10px] font-bold">•</span>
+                                        </span>
+                                        <span class="text-xs text-slate-700 dark:text-slate-200 truncate" x-text="f.file.name"></span>
+                                    </div>
+                                    <span class="text-xs flex-shrink-0"
+                                          :class="f.step === 'uploading' ? 'font-semibold text-indigo-500' : 'text-slate-400'"
+                                          x-text="f.step === 'uploading' ? Math.round(f.progress) + '%' : (f.error ? 'Gagal' : formatSize(f.file.size))"></span>
                                 </div>
-                                <span class="text-xs text-slate-400 flex-shrink-0" x-text="f.step === 'uploading' ? 'Ekstraksi halaman...' : (f.error ? 'Gagal' : formatSize(f.file.size))"></span>
+
+                                {{-- Progress bar + fase proses --}}
+                                <div x-show="f.step === 'uploading' || f.step === 'completed'" x-transition class="mt-1.5">
+                                    <div class="h-1.5 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
+                                        <div class="h-full rounded-full transition-[width] duration-300 ease-out"
+                                             :class="f.step === 'completed'
+                                                 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+                                                 : (f.step === 'failed'
+                                                     ? 'bg-gradient-to-r from-rose-500 to-rose-400'
+                                                     : 'bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500 progress-bar-anim bg-[length:200%_100%]')"
+                                             :style="'width:' + f.progress + '%'"></div>
+                                    </div>
+                                    <div class="flex justify-between mt-1" x-show="f.step === 'uploading'">
+                                        <span class="text-[10px] text-slate-400 dark:text-slate-500 truncate pr-2" x-text="f.phase"></span>
+                                    </div>
+                                </div>
                             </div>
                         </template>
                         <p x-show="fError()" x-text="firstError()" class="text-xs text-rose-500"></p>
@@ -111,7 +167,7 @@
                             class="w-full px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium transition-colors inline-flex items-center justify-center gap-2">
                         <svg x-show="!uploading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                         <svg x-show="uploading" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="3" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke-width="3" class="opacity-75"/></svg>
-                        <span x-text="uploading ? 'Memproses...' : 'Ekstrak & Simpan'"></span>
+                        <span x-text="uploading ? ('Memproses ' + uploadElapsed + 's') : 'Ekstrak & Simpan'"></span>
                     </button>
                 </form>
             </div>
@@ -200,7 +256,7 @@
 
                                 {{-- Pending --}}
                                 <div x-show="m.pending" class="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
-                                    <svg class="w-5 h-5 animate-spin text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="3" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke-width="3" class="opacity-75"/></svg>
+                                    <span class="typing-dots text-indigo-500 flex-shrink-0"><span></span><span></span><span></span></span>
                                     <span>Mencari halaman relevan di <span x-text="documents.length"></span> dokumen &amp; menanyakan Gemini (15-60 detik)...</span>
                                 </div>
 
@@ -312,6 +368,7 @@ function advisorPage() {
     return {
         dragging: false,
         uploading: false,
+        uploadElapsed: 0,
         asking: false,
         uploadQueue: [],
         question: '',
@@ -341,12 +398,50 @@ function advisorPage() {
                     file: f,
                     step: 'queueing',
                     error: null,
+                    progress: 0,
+                    phase: '',
                 });
             }
+        },
+        // Fase proses backend yang ditampilkan bergilir selama ekstraksi
+        // (server tidak streaming progress, jadi ini indikator "berjalan").
+        uploadPhases: [
+            'Mengunggah file\u2026',
+            'Membaca struktur PDF\u2026',
+            'Ekstraksi teks per halaman\u2026',
+            'Sanitasi & analisis dokumen\u2026',
+            'Menyimpan ke knowledge base\u2026',
+        ],
+        startProgress(f) {
+            this.stopProgress(f);
+            f.progress = 0;
+            f._phaseIdx = 0;
+            f.phase = this.uploadPhases[0];
+            // Rotasi label fase tiap 3 detik hingga fase terakhir.
+            f._phaseTimer = setInterval(() => {
+                f._phaseIdx = Math.min((f._phaseIdx ?? 0) + 1, this.uploadPhases.length - 1);
+                f.phase = this.uploadPhases[f._phaseIdx];
+            }, 3000);
+            // Easing menuju 92% — tidak pernah mencapai 100% sebelum respons
+            // server, agar terasa progresif namun jujur (belum selesai).
+            f._progTimer = setInterval(() => {
+                const remaining = 92 - f.progress;
+                if (remaining > 0.4) {
+                    f.progress = Math.min(92, f.progress + remaining * 0.07 + 0.25);
+                }
+            }, 200);
+        },
+        stopProgress(f, done) {
+            if (f._phaseTimer) { clearInterval(f._phaseTimer); f._phaseTimer = null; }
+            if (f._progTimer)  { clearInterval(f._progTimer);  f._progTimer = null; }
+            f.phase = '';
+            if (done) f.progress = 100;
         },
         async startUpload() {
             if (this.uploadQueue.length === 0 || this.uploading) return;
             this.uploading = true;
+            this.uploadElapsed = 0;
+            const elapsedTimer = setInterval(() => this.uploadElapsed++, 1000);
 
             // Iterasi via indeks: this.uploadQueue[i] mengembalikan referensi
             // ter-proxy Alpine, sehingga mutasi f.step/f.error memicu re-render.
@@ -357,6 +452,7 @@ function advisorPage() {
                 if (f.step === 'completed') continue;
                 f.step = 'uploading';
                 f.error = null;
+                this.startProgress(f);
 
                 const fd = new FormData();
                 fd.append('file', f.file);
@@ -371,13 +467,16 @@ function advisorPage() {
                     const data = await resp.json().catch(() => ({}));
 
                     if (resp.ok && data.status === 'completed') {
+                        this.stopProgress(f, true);
                         f.step = 'completed';
                         if (data.document) this.documents.unshift(data.document);
                     } else {
+                        this.stopProgress(f);
                         f.step = 'failed';
                         f.error = data.error_message || data.message || ('HTTP ' + resp.status);
                     }
                 } catch (err) {
+                    this.stopProgress(f);
                     f.step = 'failed';
                     f.error = (err && err.message) || 'Network gagal — cek koneksi.';
                 }
@@ -387,7 +486,11 @@ function advisorPage() {
                 }
             }
 
+            clearInterval(elapsedTimer);
             this.uploading = false;
+            // jeda singkat agar bar hijau 100% sempat terlihat sebelum item
+            // sukses dibersihkan dari antrian.
+            await new Promise(r => setTimeout(r, 600));
             // bersihkan antrian yang sukses, sisakan yang gagal utk retry manual
             this.uploadQueue = this.uploadQueue.filter(f => f.step === 'failed');
         },
