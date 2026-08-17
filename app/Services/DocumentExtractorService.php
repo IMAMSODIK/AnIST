@@ -264,27 +264,44 @@ class DocumentExtractorService
     }
 
     /** Fallback ekstraksi teks PDF murni-PHP via smalot/pdfparser.
-     *  Dipakai ketika binary pdftotext tidak tersedia (shared hosting). */
+     *  Dipakai ketika binary pdftotext tidak tersedia (shared hosting).
+     *  PDF "secured" (enkripsi owner-password, user password kosong) lebih
+     *  dulu didekripsi via PdfDecryptService karena smalot menolaknya. */
     protected function pdfToTextPhp(string $absPath, int $maxPages = 0): string
     {
-        $parser = new Parser;
-        $pdf = $parser->parseFile($absPath);
-        $pages = $pdf->getPages();
+        $parsePath = $absPath;
+        $temp = null;
 
-        if ($maxPages > 0) {
-            $pages = array_slice($pages, 0, $maxPages);
+        $decryptor = new PdfDecryptService;
+        if ($decryptor->isEncrypted($absPath)) {
+            $temp = $decryptor->decryptToTemp($absPath);
+            $parsePath = $temp;
         }
 
-        $texts = [];
-        foreach ($pages as $page) {
-            try {
-                $texts[] = $page->getText();
-            } catch (Throwable) {
-                $texts[] = '';
+        try {
+            $parser = new Parser;
+            $pdf = $parser->parseFile($parsePath);
+            $pages = $pdf->getPages();
+
+            if ($maxPages > 0) {
+                $pages = array_slice($pages, 0, $maxPages);
+            }
+
+            $texts = [];
+            foreach ($pages as $page) {
+                try {
+                    $texts[] = $page->getText();
+                } catch (Throwable) {
+                    $texts[] = '';
+                }
+            }
+
+            return implode("\x0C", $texts);
+        } finally {
+            if ($temp !== null) {
+                @unlink($temp);
             }
         }
-
-        return implode("\x0C", $texts);
     }
 
     /** Hitung jumlah halaman PDF via pdfinfo jika tersedia, fallback heuristik. */
