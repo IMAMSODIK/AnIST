@@ -3,7 +3,33 @@
 @section('page-title', 'Strategic Advisor')
 
 @section('content')
-<div class="max-w-5xl mx-auto space-y-6" x-data="strategicAdvisor()" x-cloak>
+<style>
+/* Styling hasil render markdown jawaban Gemini (bubble chat) — pengganti
+   prose/typography plugin yang tidak terpasang di Tailwind v4 project ini. */
+.answer-md p { margin: 0 0 .6rem; }
+.answer-md p:last-child { margin-bottom: 0; }
+.answer-md strong { font-weight: 600; color: inherit; }
+.answer-md em { font-style: italic; }
+.answer-md ul, .answer-md ol { margin: .25rem 0 .6rem; padding-left: 1.25rem; }
+.answer-md ul { list-style: disc; }
+.answer-md ol { list-style: decimal; }
+.answer-md li { margin: .15rem 0; }
+.answer-md h1, .answer-md h2, .answer-md h3, .answer-md h4 {
+    font-weight: 600; margin: .75rem 0 .35rem; line-height: 1.35;
+}
+.answer-md h1 { font-size: 1.05rem; } .answer-md h2 { font-size: 1rem; }
+.answer-md h3, .answer-md h4 { font-size: .95rem; }
+.answer-md a { color: #4f46e5; text-decoration: underline; }
+.answer-md blockquote {
+    border-left: 3px solid #c7d2fe; padding-left: .75rem; margin: .5rem 0;
+    color: #64748b; font-style: italic;
+}
+.answer-md code { background: rgba(0,0,0,.06); border-radius: 4px; padding: .1rem .3rem; font-size: .85em; }
+@media (prefers-color-scheme: dark) {
+    .answer-md code { background: rgba(255,255,255,.1); }
+}
+</style>
+<div class="max-w-7xl mx-auto space-y-6" x-data="advisorPage()" x-cloak>
 
     {{-- Hero --}}
     <div class="glass rounded-2xl border border-white/40 dark:border-slate-700/40 p-6">
@@ -16,472 +42,460 @@
             <div>
                 <h2 class="text-xl font-bold text-slate-800 dark:text-white">AI Strategic Advisor</h2>
                 <p class="text-sm text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
-                    Upload satu atau beberapa dokumen strategis (<span class="font-medium">RJPP</span> / <span class="font-medium">MPTI</span> / <span class="font-medium">research paper</span>) format PDF.
-                    AI akan mengekstrak struktur dokumen, memberikan analisis &amp; rekomendasi strategis berdasarkan dokumen,
-                    serta menyarankan tren internet terkini yang relevan dengan domain dokumen tersebut (via Google Search grounding).
+                    Unggah beberapa dokumen strategis (<span class="font-medium">RJPP</span> / <span class="font-medium">MPTI</span> / <span class="font-medium">paper</span>, PDF maks 50MB per file).
+                    Sistem mengekstrak &amp; menyimpan isi dokumen <span class="font-medium">per halaman</span> ke knowledge base.
+                    Lalu ajukan pertanyaan / minta saran — Gemini menjawab <span class="font-medium">dengan sitasi dokumen &amp; halaman</span>
+                    serta memperhatikan tren internet terkini (Google Search grounding).
                 </p>
             </div>
         </div>
     </div>
 
-    {{-- Upload Card --}}
-    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
-        <h3 class="text-lg font-semibold text-slate-800 dark:text-white mb-2 flex items-center gap-2">
-            <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-            Upload Dokumen Strategis
-        </h3>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">Hanya file PDF, maksimal 50MB per file. Boleh beberapa file sekaligus. Proses analisis ~15-45 detik per dokumen.</p>
+    <div class="grid lg:grid-cols-5 gap-6 items-start">
 
-        {{-- Dropzone multi-file (NO native <form> submit; we never submit this form,
-             upload handled via AJAX to /upload-ajax one file at a time) --}}
-        <form id="strategic-advisor-form" class="space-y-5">
-            @csrf
-            <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Dokumen PDF (boleh lebih dari satu)</label>
-                <div class="relative border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer"
-                     :class="dragging ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20' : 'border-slate-300 dark:border-slate-600 hover:border-indigo-400 dark:hover:border-indigo-500'"
-                     @click="$refs.fileInput.click()"
-                     @dragover.prevent="dragging = true"
-                     @dragleave.prevent="dragging = false"
-                     @drop.prevent="handleDrop($event)">
-                    <input type="file" x-ref="fileInput" class="hidden" accept=".pdf,application/pdf" multiple
-                           @change="handlePick($event.target.files)">
-                    <svg class="w-10 h-10 text-slate-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                    </svg>
-                    <p class="text-sm text-slate-600 dark:text-slate-400">Click untuk pilih file atau drag &amp; drop ke sini <span class="text-xs text-slate-400">(boleh beberapa PDF sekaligus)</span></p>
-                    <p class="text-xs text-slate-400 mt-2">PDF hingga 50MB per file</p>
-                </div>
-            </div>
+        {{-- ================= LEFT: Knowledge Base ================= --}}
+        <div class="lg:col-span-2 space-y-6">
 
-            {{-- Selected files preview --}}
-            <div x-show="queue.length > 0" x-transition class="space-y-2">
-                <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Antrian upload (<span x-text="queue.length"></span>):</p>
-                <template x-for="(f, i) in queue" :key="f.id">
-                    <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-700/30 rounded-xl px-4 py-2.5 border border-slate-100 dark:border-slate-700">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <svg class="w-4 h-4 text-rose-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                            <span class="text-sm text-slate-700 dark:text-slate-200 truncate" x-text="f.file.name"></span>
-                            <span class="text-xs text-slate-400 flex-shrink-0" x-text="formatSize(f.file.size)"></span>
-                        </div>
-                        <button type="button" @click="removeFile(i)" class="text-slate-400 hover:text-rose-500 flex-shrink-0" x-show="!uploading">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                        </button>
+            {{-- Upload Card --}}
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+                <h3 class="text-lg font-semibold text-slate-800 dark:text-white mb-2 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                    Tambah Dokumen
+                </h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Hanya PDF, maksimal 50MB per file, boleh beberapa file sekaligus. Ekstraksi ~5-30 detik per dokumen (tanpa AI).</p>
+
+                <form id="advisor-form" class="space-y-4">
+                    @csrf
+                    <div class="relative border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer"
+                         :class="dragging ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20' : 'border-slate-300 dark:border-slate-600 hover:border-indigo-400 dark:hover:border-indigo-500'"
+                         @click="$refs.fileInput.click()"
+                         @dragover.prevent="dragging = true"
+                         @dragleave.prevent="dragging = false"
+                         @drop.prevent="handleDrop($event)">
+                        <input type="file" x-ref="fileInput" class="hidden" accept=".pdf,application/pdf" multiple
+                               @change="handlePick($event.target.files)">
+                        <svg class="w-8 h-8 text-slate-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                        <p class="text-sm text-slate-600 dark:text-slate-400">Klik / drag &amp; drop PDF ke sini</p>
+                        <p class="text-xs text-slate-400 mt-1">Bisa beberapa file sekaligus</p>
                     </div>
-                </template>
-            </div>
 
-            {{-- How it works --}}
-            <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-4">
-                <div class="flex items-start gap-3">
-                    <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <div class="text-sm text-indigo-700 dark:text-indigo-300">
-                        <p class="font-medium mb-1">Alur:</p>
-                        <ol class="list-decimal list-inside space-y-1 text-xs">
-                            <li>Pilih satu atau beberapa PDF — sistem memproses satu-per-satu agar progres terlihat</li>
-                            <li>DocumentExtractorService ekstrak struktur (Daftar Isi, KPI, Inisiatif, SS, Ringkasan Eksekutif)</li>
-                            <li>PromptManager susun Strategic Advisor Prompt</li>
-                            <li>Gemini menganalisis dengan <span class="font-medium">Google Search grounding</span> untuk tren internet terkini</li>
-                            <li>Selesai → langsung tautan ke halaman detail hasil</li>
-                        </ol>
+                    {{-- Upload queue --}}
+                    <div x-show="uploadQueue.length > 0" x-transition class="space-y-2">
+                        <template x-for="f in uploadQueue" :key="f.id">
+                            <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-700/30 rounded-xl px-3 py-2 border border-slate-100 dark:border-slate-700">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                                          :class="{
+                                              'bg-slate-200 dark:bg-slate-600 text-slate-500': f.step === 'queueing',
+                                              'bg-amber-100 dark:bg-amber-900/40 text-amber-600': f.step === 'uploading',
+                                              'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600': f.step === 'completed',
+                                              'bg-rose-100 dark:bg-rose-900/40 text-rose-600': f.step === 'failed'
+                                          }">
+                                        <svg x-show="f.step === 'uploading'" class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="3" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke-width="3" class="opacity-75"/></svg>
+                                        <svg x-show="f.step === 'completed'" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                        <svg x-show="f.step === 'failed'" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        <span x-show="f.step === 'queueing'" class="text-[10px] font-bold">•</span>
+                                    </span>
+                                    <span class="text-xs text-slate-700 dark:text-slate-200 truncate" x-text="f.file.name"></span>
+                                </div>
+                                <span class="text-xs text-slate-400 flex-shrink-0" x-text="f.step === 'uploading' ? 'Ekstraksi halaman...' : (f.error ? 'Gagal' : formatSize(f.file.size))"></span>
+                            </div>
+                        </template>
+                        <p x-show="fError()" x-text="firstError()" class="text-xs text-rose-500"></p>
                     </div>
-                </div>
-            </div>
 
-            <div class="flex justify-between items-center pt-4">
-                <a href="{{ route('strategic-advisor.history') }}" class="text-sm text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 inline-flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    Riwayat analisis
-                </a>
-                <div class="flex items-center gap-3">
-                    <button type="button" @click="resetQueue()" x-show="queue.length > 0 && !uploading" class="text-sm text-slate-500 hover:text-rose-500 dark:text-slate-400 dark:hover:text-rose-400">
-                        Kosongkan
-                    </button>
                     <button type="button" @click="startUpload()"
-                            :disabled="queue.length === 0 || uploading"
-                            class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium transition-colors inline-flex items-center gap-2">
+                            :disabled="uploadQueue.length === 0 || uploading"
+                            class="w-full px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium transition-colors inline-flex items-center justify-center gap-2">
                         <svg x-show="!uploading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                         <svg x-show="uploading" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="3" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke-width="3" class="opacity-75"/></svg>
-                        <span x-text="uploading ? 'Memproses...' : 'Analyze'"></span>
+                        <span x-text="uploading ? 'Memproses...' : 'Ekstrak & Simpan'"></span>
                     </button>
-                </div>
+                </form>
             </div>
-        </form>
-    </div>
 
-    {{-- Recent Activity --}}
-    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-2">
-                <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-                Aktivitas Terkini
-            </h3>
-            @if($recent->count() > 0)
-            <a href="{{ route('strategic-advisor.history') }}" class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">Lihat semua →</a>
-            @endif
-        </div>
-
-        @if($recent->isEmpty())
-        <div class="text-center py-10 text-sm text-slate-400 dark:text-slate-500">
-            <svg class="w-12 h-12 mx-auto mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            Belum ada analisis. Upload dokumen strategis untuk memulai.
-        </div>
-        @else
-        <div class="space-y-3">
-            @foreach($recent as $r)
-            <a href="{{ route('strategic-advisor.show', $r) }}" class="block bg-slate-50 dark:bg-slate-700/30 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl p-4 transition-colors group">
-                <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0 flex-1">
-                        <p class="text-sm font-medium text-slate-800 dark:text-white truncate group-hover:text-indigo-700 dark:group-hover:text-indigo-300">{{ $r->source_file }}</p>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                            {{ $r->document_type !== 'unknown' ? strtoupper($r->document_type) : 'Tipe tidak dikenali' }}
-                            @if($r->company) &middot; {{ $r->company }} @endif
-                            @if($r->period) &middot; {{ $r->period }} @endif
-                        </p>
-                        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">{{ $r->created_at->diffForHumans() }} &middot; oleh {{ $r->user->name ?? 'N/A' }}</p>
-                    </div>
-                    <span class="inline-flex flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-medium
-                        {{ $r->status === 'completed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : '' }}
-                        {{ $r->status === 'processing' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : '' }}
-                        {{ $r->status === 'failed' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' : '' }}
-                        {{ $r->status === 'pending' ? 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300' : '' }}">
-                        @if($r->status === 'completed')Selesai
-                        @elseif($r->status === 'processing')Memproses
-                        @elseif($r->status === 'failed')Gagal
-                        @else Pending @endif
-                    </span>
+            {{-- Document Library --}}
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                        <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                        Knowledge Base
+                        <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300" x-text="documents.length + ' dok'"></span>
+                    </h3>
                 </div>
-            </a>
-            @endforeach
-        </div>
-        @endif
-    </div>
 
-    {{-- Modal progress upload --}}
-    <div x-show="modalOpen"
-         x-transition:enter="transition ease-out duration-300"
-         x-transition:enter-start="opacity-0"
-         x-transition:enter-end="opacity-100"
-         x-transition:leave="transition ease-in duration-200"
-         x-transition:leave-start="opacity-100"
-         x-transition:leave-end="opacity-0"
-         class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4"
-         @keydown.escape.window="modalOpen = false" style="display:none;">
-        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 scale-95 translate-y-4"
-             x-transition:enter-end="opacity-100 scale-100 translate-y-0"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100 scale-100 translate-y-0"
-             x-transition:leave-end="opacity-0 scale-95 translate-y-4">
-            {{-- Header --}}
+                <div x-show="documents.length === 0" class="text-center py-8 text-sm text-slate-400 dark:text-slate-500">
+                    <svg class="w-10 h-10 mx-auto mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    Belum ada dokumen. Unggah dokumen untuk memulai.
+                </div>
+
+                <div class="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                    <template x-for="d in documents" :key="d.id">
+                        <div class="flex items-start justify-between gap-3 bg-slate-50 dark:bg-slate-700/30 rounded-xl p-3 border border-slate-100 dark:border-slate-700 group">
+                            <div class="min-w-0 flex-1">
+                                <p class="text-sm font-medium text-slate-800 dark:text-white truncate" x-text="d.name" :title="d.name"></p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                    <span x-text="d.total_pages + ' halaman'"></span>
+                                    <span x-show="d.company"> &middot; <span x-text="d.company"></span></span>
+                                    <span x-show="d.period"> &middot; <span x-text="d.period"></span></span>
+                                </p>
+                                <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5" x-text="d.created_at"></p>
+                                <p x-show="d.error_message" class="text-xs text-amber-600 dark:text-amber-400 mt-1" x-text="d.error_message"></p>
+                            </div>
+                            <button type="button" @click="deleteDocument(d)"
+                                    class="text-slate-300 hover:text-rose-500 dark:text-slate-600 dark:hover:text-rose-400 flex-shrink-0 transition-colors"
+                                    :disabled="uploading || asking">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+
+                @if($documents->hasPages())
+                <div class="pt-3">{{ $documents->links() }}</div>
+                @endif
+            </div>
+        </div>
+
+        {{-- ================= RIGHT: Chat / Q&A ================= --}}
+        <div class="lg:col-span-3 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col" style="min-height: 640px;">
+
+            {{-- Chat header --}}
             <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
                 <h3 class="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-2">
-                    <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                    Proses Analisis Dokumen
+                    <svg class="w-5 h-5 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+                    Tanya Strategic Advisor
                 </h3>
-                <button @click="closeModal()" x-show="!uploading && doneCount === queue.length" class="text-slate-400 hover:text-slate-700 dark:hover:text-white">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
+                <a href="{{ route('strategic-advisor.history') }}" class="text-xs text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 inline-flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Riwayat
+                </a>
             </div>
 
-            {{-- Overall progress --}}
-            <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Total Progres</span>
-                    <span class="text-sm font-bold text-indigo-600 dark:text-indigo-400">
-                        <span x-text="doneCount"></span>/<span x-text="queue.length"></span> dokumen
-                    </span>
-                </div>
-                <div class="h-2.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div class="h-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500 rounded-full relative" :style="`width: ${overallPct}%`">
-                        <div x-show="uploading" class="absolute inset-0 bg-white/30 animate-pulse rounded-full"></div>
+            {{-- Messages --}}
+            <div class="flex-1 overflow-y-auto px-6 py-5 space-y-6" x-ref="chatBox">
+                <div x-show="messages.length === 0" class="text-center py-16">
+                    <div class="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-7 h-7 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     </div>
-                </div>
-                <div class="flex items-center justify-between mt-1.5">
-                    <p class="text-xs text-slate-500 dark:text-slate-400" x-show="uploading">
-                        Sedang memproses: <span class="font-medium text-slate-700 dark:text-slate-200" x-text="currentFileName"></span>
+                    <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Ajukan pertanyaan atau minta saran strategis</p>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-md mx-auto">
+                        Contoh: "Bagaimana keselarasan KPI di RJPP dengan inisiatif PTI di MPTI?" atau
+                        "Beri saran prioritas transformasi digital 2026 beserta tren terkini."
                     </p>
-                    <p class="text-xs text-emerald-600 dark:text-emerald-400" x-show="!uploading && doneCount === queue.length">
-                        Selesai. Berkas siap dilihat.
-                    </p>
-                    <p class="text-xs text-slate-400 ml-auto" x-text="`${Math.round(overallPct)}%`"></p>
                 </div>
-            </div>
 
-            {{-- Per-file list --}}
-            <div class="flex-1 overflow-y-auto px-6 py-4 space-y-3 max-h-[50vh]">
-                <template x-for="(f, i) in queue" :key="f.id">
-                    <div class="border border-slate-100 dark:border-slate-700 rounded-xl p-3">
-                        <div class="flex items-start gap-3">
-                            <span class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
-                                  :class="{
-                                      'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300': f.step === 'queueing',
-                                      'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 animate-pulse': f.step === 'uploading',
-                                      'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300': f.step === 'completed',
-                                      'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300': f.step === 'failed'
-                                  }">
-                                <span x-show="f.step === 'queueing'" x-text="i + 1"></span>
-                                <svg x-show="f.step === 'uploading'" class="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="3" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke-width="3" class="opacity-75"/></svg>
-                                <svg x-show="f.step === 'completed'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                                <svg x-show="f.step === 'failed'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
-                            </span>
-                            <div class="min-w-0 flex-1">
-                                <p class="text-sm font-medium text-slate-800 dark:text-slate-100 truncate" x-text="f.file.name"></p>
-                                <div class="mt-1.5 space-y-1">
-                                    {{-- indeterminate uploader (single-segment) untuk Tahap 1 (extract+ground) --}}
-                                    <template x-for="(s, si) in f.stages" :key="si">
-                                        <div class="flex items-center gap-2 text-xs">
-                                            <span class="w-2 h-2 rounded-full flex-shrink-0"
-                                                  :class="{
-                                                      'bg-slate-300 dark:bg-slate-600': s.state === 'pending',
-                                                      'bg-amber-500 animate-pulse': s.state === 'running',
-                                                      'bg-emerald-500': s.state === 'done',
-                                                      'bg-rose-500': s.state === 'failed'
-                                                  }"></span>
-                                            <span class="text-slate-500 dark:text-slate-400" :class="s.state === 'running' ? 'font-medium text-amber-700 dark:text-amber-400' : ''" x-text="s.label"></span>
+                <template x-for="m in messages" :key="m.id">
+                    <div class="space-y-3">
+                        {{-- User bubble --}}
+                        <div class="flex justify-end">
+                            <div class="max-w-[85%] bg-indigo-600 text-white rounded-2xl rounded-br-md px-4 py-3 text-sm leading-relaxed whitespace-pre-line" x-text="m.question"></div>
+                        </div>
+
+                        {{-- Assistant answer --}}
+                        <div class="flex justify-start">
+                            <div class="max-w-[95%] w-full bg-slate-50 dark:bg-slate-700/30 rounded-2xl rounded-bl-md border border-slate-100 dark:border-slate-700 px-5 py-4">
+
+                                {{-- Pending --}}
+                                <div x-show="m.pending" class="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
+                                    <svg class="w-5 h-5 animate-spin text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="3" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke-width="3" class="opacity-75"/></svg>
+                                    <span>Mencari halaman relevan di <span x-text="documents.length"></span> dokumen &amp; menanyakan Gemini (15-60 detik)...</span>
+                                </div>
+
+                                {{-- Failed --}}
+                                <div x-show="!m.pending && m.status === 'failed'" class="text-sm text-rose-600 dark:text-rose-400">
+                                    <p class="font-medium mb-1">Gagal menjawab:</p>
+                                    <p x-text="m.error_message || 'Terjadi kesalahan tidak dikenal.'"></p>
+                                </div>
+
+                                {{-- Completed --}}
+                                <div x-show="!m.pending && m.status === 'completed'" class="space-y-4">
+                                    <div class="text-sm text-slate-700 dark:text-slate-300 leading-relaxed answer-md"
+                                         x-html="window.mdToHtml ? mdToHtml(m.answer || '') : (m.answer || '')"></div>
+
+                                    {{-- Citations --}}
+                                    <div x-show="m.citations && m.citations.length > 0">
+                                        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-2 flex items-center gap-1.5">
+                                            <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                            Sumber (dokumen &amp; halaman)
+                                        </p>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            <template x-for="(c, ci) in m.citations" :key="ci">
+                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs bg-white dark:bg-slate-800 border border-indigo-100 dark:border-indigo-800/50 text-indigo-700 dark:text-indigo-300 cursor-help"
+                                                      :title="c.quote || ''">
+                                                    <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                                    <span class="truncate max-w-[240px]" x-text="(c.document || 'Dokumen') + ' — hal. ' + c.page"></span>
+                                                </span>
+                                            </template>
                                         </div>
-                                    </template>
+                                    </div>
+
+                                    {{-- Recommendations --}}
+                                    <div x-show="m.recommendations && m.recommendations.length > 0" class="border-t border-slate-200 dark:border-slate-700 pt-3">
+                                        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-2 flex items-center gap-1.5">
+                                            <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                            Saran Strategis
+                                        </p>
+                                        <ol class="space-y-2">
+                                            <template x-for="(r, ri) in m.recommendations" :key="ri">
+                                                <li class="text-sm text-slate-700 dark:text-slate-300">
+                                                    <span class="font-medium" x-html="window.mdToHtml ? mdToHtmlInline((ri + 1) + '. ' + (r.title || '')) : ((ri + 1) + '. ' + (r.title || ''))"></span>
+                                                    <span x-show="r.detail" class="block text-slate-600 dark:text-slate-400 text-xs leading-relaxed answer-md mt-0.5" x-html="window.mdToHtml ? mdToHtml(r.detail) : (r.detail || '')"></span>
+                                                </li>
+                                            </template>
+                                        </ol>
+                                    </div>
+
+                                    {{-- Trends --}}
+                                    <div x-show="m.trends && m.trends.length > 0" class="border-t border-slate-200 dark:border-slate-700 pt-3">
+                                        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-2 flex items-center gap-1.5">
+                                            <svg class="w-3.5 h-3.5 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                            Tren Internet Terkini
+                                        </p>
+                                        <div class="space-y-2.5">
+                                            <template x-for="(t, ti) in m.trends" :key="ti">
+                                                <div class="text-sm">
+                                                    <span class="font-medium text-slate-700 dark:text-slate-200" x-html="window.mdToHtml ? mdToHtmlInline(t.trend) : (t.trend || '')"></span>
+                                                    <span x-show="t.relevance" class="block text-xs text-slate-500 dark:text-slate-400 leading-relaxed answer-md mt-0.5" x-html="window.mdToHtml ? mdToHtml(t.relevance) : (t.relevance || '')"></span>
+                                                    <span x-show="t.source" class="block text-[11px] text-slate-400 italic mt-0.5" x-text="'Sumber: ' + t.source"></span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+
+                                    <p class="text-[11px] text-slate-400 dark:text-slate-500 text-right">
+                                        <span x-text="m.processing_time ? m.processing_time + 's · ' : ''"></span>
+                                        <span x-text="m.created_at"></span>
+                                        &middot; <a :href="showUrl(m.id)" class="hover:text-indigo-500">detail</a>
+                                    </p>
                                 </div>
-                                @if(false)
-                                <div class="mt-2 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                                    <div class="h-full bg-indigo-500 transition-all duration-300" :style="`width: ${f.pct}%`"></div>
-                                </div>
-                                @endif
-                                <p x-show="f.error" class="text-xs text-rose-500 dark:text-rose-400 mt-1.5" x-text="f.error"></p>
-                                <a x-show="f.show_url && f.step === 'completed'"
-                                   :href="f.show_url"
-                                   class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline mt-1.5 inline-flex items-center gap-1">
-                                    Lihat hasil →
-                                </a>
                             </div>
                         </div>
                     </div>
                 </template>
             </div>
 
-            {{-- Footer --}}
-            <div class="px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between bg-slate-50 dark:bg-slate-700/30">
-                <p class="text-xs text-slate-500 dark:text-slate-400">
-                    <span x-show="uploading">Mohon tunggu, jangan tutup halaman...</span>
-                    <span x-show="!uploading && doneCount < queue.length && doneCount > 0">Sebagian dokumen gagal. Anda bisa tutup modal ini.</span>
-                    <span x-show="!uploading && doneCount === queue.length && queue.length > 0">
-                        <span x-text="successCount"></span> berhasil, <span x-text="queue.length - successCount"></span> gagal dari <span x-text="queue.length"></span> dokumen.
-                    </span>
-                </p>
-                <div class="flex items-center gap-2">
-                    <button @click="closeModal()" x-show="!uploading"
-                            class="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                        Tutup
-                    </button>
-                    <button @click="resetCompletedAndRetry()" x-show="!uploading && failedCount > 0"
-                            class="px-4 py-2 text-sm bg-amber-600 hover:bg-amber-700 text-white rounded-xl transition-colors inline-flex items-center gap-1.5">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.582m0 0a8.003 8.003 0 01-15.357-2m15.357 9H15"/></svg>
-                        Retry gagal
-                    </button>
-                    <button @click="goToHistory()" x-show="!uploading && successCount > 0"
-                            class="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors inline-flex items-center gap-1.5">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-                        Buka riwayat
+            {{-- Ask box --}}
+            <div class="border-t border-slate-200 dark:border-slate-700 px-6 py-4 bg-slate-50 dark:bg-slate-700/30 rounded-b-2xl">
+                <div class="flex items-end gap-3">
+                    <div class="flex-1">
+                        <textarea x-ref="questionInput"
+                                  rows="2"
+                                  class="w-full resize-none border border-slate-200 dark:border-slate-600 dark:bg-slate-800 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                                  placeholder="Tulis pertanyaan atau minta saran strategis... (Enter kirim, Shift+Enter baris baru)"
+                                  :disabled="asking"
+                                  x-model="question"
+                                  @keydown.enter.prevent="sendQuestion()"></textarea>
+                        <p class="text-[11px] text-slate-400 mt-1.5">
+                            Jawaban bersumber dari <span class="font-medium" x-text="documents.length"></span> dokumen di knowledge base + tren internet terkini.
+                            <span x-show="documents.length === 0" class="text-amber-500">Unggah dokumen dulu sebelum bertanya.</span>
+                        </p>
+                    </div>
+                    <button type="button" @click="sendQuestion()"
+                            :disabled="asking || question.trim().length < 5 || documents.length === 0"
+                            class="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium transition-colors inline-flex items-center gap-2 flex-shrink-0">
+                        <svg x-show="!asking" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                        <svg x-show="asking" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="3" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke-width="3" class="opacity-75"/></svg>
+                        <span x-text="asking ? '...' : 'Kirim'"></span>
                     </button>
                 </div>
             </div>
         </div>
     </div>
-
 </div>
 
 @push('scripts')
 <script>
-/**
- * Strategic Advisor state machine (Alpine).
- *
- * - queue: file list with per-file stages ('queueing','uploading','completed','failed')
- * - Upload is sequential (one file at a time) — each file hits /strategic-advisor/upload-ajax
- *   with multipart/form-data. We do NOT use XHR.upload.onprogress because the heavy
- *   work happens server-side (extraction + Gemini grounded call ~15-45s) and the actual
- *   network upload is fast; instead we animate a 3-stage indicator:
- *     1) "Mengirim dokumen"
- *     2) "Ekstraksi struktur dokumen"
- *     3) "AI analisis + grounding tren internet"
- *
- * Each stage has state: pending | running | done | failed. We move the stage to 'running'
- * when XHR fires onloadstart (request sent) and to 'done' on success. When server returns
- * JSON, we deterministically mark stage 2 + stage 3 as done OR failed based on response.status.
- * This gives the user a truthful, non-fake sense of progress without needing a Streamed
- * response or polling.
- */
-function strategicAdvisor() {
+function advisorPage() {
     return {
         dragging: false,
         uploading: false,
-        modalOpen: false,
-        queue: [],
-        doneCount: 0,
-        successCount: 0,
-        currentFileName: '',
+        asking: false,
+        uploadQueue: [],
+        question: '',
 
-        get overallPct() {
-            if (this.queue.length === 0) return 0;
-            // weight: queueing=0, uploading=50, completed/failed=100
-            let sum = 0;
-            for (const f of this.queue) {
-                if (f.step === 'completed' || f.step === 'failed') sum += 100;
-                else if (f.step === 'uploading') {
-                    // count stages done
-                    const stagesDone = f.stages.filter(s => s.state === 'done').length;
-                    sum += (stagesDone / f.stages.length) * 100;
-                }
-            }
-            return sum / this.queue.length;
-        },
-        get failedCount() {
-            return this.queue.filter(f => f.step === 'failed').length;
-        },
+        documents: @json($documentsJson),
 
+        messages: @json($messagesJson),
+
+        // ---------- upload ----------
         handleDrop(ev) {
             this.dragging = false;
             this.addFiles(ev.dataTransfer.files);
         },
         handlePick(fileList) {
             this.addFiles(fileList);
-            // reset input so picking the same file twice still triggers @change
             if (this.$refs.fileInput) this.$refs.fileInput.value = '';
         },
         addFiles(fileList) {
             for (const f of fileList) {
-                if (f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name)) {
-                    continue;
-                }
+                if (f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name)) continue;
                 if (f.size > 50 * 1024 * 1024) {
-                    alert(`"${f.name}" melebihi 50MB dan diabaikan.`);
+                    alert('"' + f.name + '" melebihi 50MB dan diabaikan.');
                     continue;
                 }
-                this.queue.push({
+                this.uploadQueue.push({
                     id: Date.now() + Math.random(),
                     file: f,
-                    step: 'queueing', // queueing | uploading | completed | failed
-                    pct: 0,
-                    show_url: null,
+                    step: 'queueing',
                     error: null,
-                    stages: [
-                        { label: 'Mengirim dokumen ke server', state: 'pending' },
-                        { label: 'Ekstraksi struktur dokumen', state: 'pending' },
-                        { label: 'AI analisis + grounding tren internet', state: 'pending' },
-                    ],
                 });
             }
         },
-        removeFile(i) {
-            this.queue.splice(i, 1);
+        async startUpload() {
+            if (this.uploadQueue.length === 0 || this.uploading) return;
+            this.uploading = true;
+
+            // Iterasi via indeks: this.uploadQueue[i] mengembalikan referensi
+            // ter-proxy Alpine, sehingga mutasi f.step/f.error memicu re-render.
+            // (for...of pada array reaktif juga me-return proxy via iterator,
+            // tapi akses indeks eksplisit lebih eksplisit & aman.)
+            for (let i = 0; i < this.uploadQueue.length; i++) {
+                const f = this.uploadQueue[i];
+                if (f.step === 'completed') continue;
+                f.step = 'uploading';
+                f.error = null;
+
+                const fd = new FormData();
+                fd.append('file', f.file);
+                fd.append('_token', this.csrfToken());
+
+                try {
+                    const resp = await fetch('{!! route('strategic-advisor.documents.store') !!}', {
+                        method: 'POST',
+                        body: fd,
+                        headers: { 'Accept': 'application/json' },
+                    });
+                    const data = await resp.json().catch(() => ({}));
+
+                    if (resp.ok && data.status === 'completed') {
+                        f.step = 'completed';
+                        if (data.document) this.documents.unshift(data.document);
+                    } else {
+                        f.step = 'failed';
+                        f.error = data.error_message || data.message || ('HTTP ' + resp.status);
+                    }
+                } catch (err) {
+                    f.step = 'failed';
+                    f.error = (err && err.message) || 'Network gagal — cek koneksi.';
+                }
+                // jeda kecil antar file agar tidak menumpuk proses pdftotext
+                if (this.uploadQueue.some(q => q.step === 'queueing')) {
+                    await new Promise(r => setTimeout(r, 800));
+                }
+            }
+
+            this.uploading = false;
+            // bersihkan antrian yang sukses, sisakan yang gagal utk retry manual
+            this.uploadQueue = this.uploadQueue.filter(f => f.step === 'failed');
         },
-        resetQueue() {
-            if (this.uploading) return;
-            this.queue = [];
-            this.doneCount = 0;
-            this.successCount = 0;
+        fError() { return this.uploadQueue.some(f => f.step === 'failed' && f.error); },
+        firstError() {
+            const f = this.uploadQueue.find(f => f.step === 'failed' && f.error);
+            return f ? f.error : '';
+        },
+        async deleteDocument(d) {
+            if (! confirm('Hapus dokumen "' + d.name + '" dari knowledge base? File fisik juga akan dihapus.')) return;
+            try {
+                const resp = await fetch(d.delete_url, {
+                    method: 'DELETE',
+                    headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': this.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                if (resp.ok) {
+                    this.documents = this.documents.filter(x => x.id !== d.id);
+                } else {
+                    alert('Gagal menghapus dokumen (HTTP ' + resp.status + ').');
+                }
+            } catch (err) {
+                alert('Gagal menghapus dokumen: ' + (err.message || err));
+            }
+        },
+
+        // ---------- ask ----------
+        async sendQuestion() {
+            const q = this.question.trim();
+            if (q.length < 5 || this.asking || this.documents.length === 0) return;
+            this.asking = true;
+            this.question = '';
+
+            const optimistic = {
+                id: 'tmp-' + Date.now(),
+                question: q,
+                answer: null,
+                citations: [],
+                trends: [],
+                recommendations: [],
+                grounded: false,
+                status: 'pending',
+                error_message: null,
+                processing_time: null,
+                created_at: 'baru saja',
+                pending: true,
+            };
+            this.messages.push(optimistic);
+            // PENTING reaktivitas Alpine: setelah push, akses ulang item via
+            // array agar mendapatkan referensi ter-proxy. Memutasi objek
+            // mentah (optimistic) TIDAK memicu re-render, sehingga UI stuck
+            // di "Mencari halaman relevan..." walau respons sudah diterima.
+            const msg = this.messages[this.messages.length - 1];
+            this.$nextTick(() => this.scrollToBottom());
+
+            try {
+                const fd = new FormData();
+                fd.append('question', q);
+                fd.append('_token', this.csrfToken());
+
+                const resp = await fetch('{!! route('strategic-advisor.ask') !!}', {
+                    method: 'POST',
+                    body: fd,
+                    headers: { 'Accept': 'application/json' },
+                });
+                const data = await resp.json().catch(() => ({}));
+
+                const m = data.message || {};
+                Object.assign(msg, {
+                    id: m.id || msg.id,
+                    answer: m.answer || null,
+                    citations: m.citations || [],
+                    trends: m.trends || [],
+                    recommendations: m.recommendations || [],
+                    grounded: !!m.grounded,
+                    status: (resp.ok && data.status === 'completed') ? 'completed' : 'failed',
+                    error_message: data.error_message || data.message || m.error_message || 'Gagal tak terduga.',
+                    processing_time: m.processing_time || null,
+                    created_at: m.created_at || 'baru saja',
+                    pending: false,
+                });
+            } catch (err) {
+                Object.assign(msg, {
+                    pending: false,
+                    status: 'failed',
+                    error_message: (err && err.message) || 'Network gagal — cek koneksi.',
+                });
+            }
+
+            this.asking = false;
+            this.$nextTick(() => this.scrollToBottom());
+        },
+        scrollToBottom() {
+            const el = this.$refs.chatBox;
+            if (el) el.scrollTop = el.scrollHeight;
+        },
+        showUrl(id) {
+            return '{!! route('strategic-advisor.show', ':ID') !!}'.replace(':ID', String(id).replace('tmp-', '0'));
+        },
+
+        // ---------- utils ----------
+        csrfToken() {
+            return document.querySelector('meta[name="csrf-token"]')?.content
+                || document.querySelector('#advisor-form input[name="_token"]')?.value;
         },
         formatSize(bytes) {
             if (bytes < 1024) return bytes + ' B';
             if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
             return (bytes / 1024 / 1024).toFixed(2) + ' MB';
-        },
-
-        async startUpload() {
-            if (this.queue.length === 0) return;
-            if (this.uploading) return;
-            this.uploading = true;
-            this.modalOpen = true;
-            this.doneCount = 0;
-            this.successCount = 0;
-
-            // process sequentially
-            for (const f of this.queue) {
-                if (f.step === 'completed') continue;
-                f.step = 'uploading';
-                f.error = null;
-                this.currentFileName = f.file.name;
-
-                // mark stage 0 running
-                f.stages[0].state = 'running';
-
-                const fd = new FormData();
-                fd.append('file', f.file);
-                fd.append('_token', document.querySelector('meta[name="csrf-token"]')?.content
-                    || document.querySelector('#strategic-advisor-form input[name="_token"]')?.value);
-
-                try {
-                    const resp = await fetch('{!! route('strategic-advisor.upload-ajax') !!}', {
-                        method: 'POST',
-                        body: fd,
-                        headers: { 'Accept': 'application/json' },
-                    });
-
-                    f.stages[0].state = 'done';
-                    f.stages[1].state = 'done';
-                    f.stages[2].state = 'running';
-
-                    const data = await resp.json().catch(() => ({}));
-
-                    if (resp.ok && data.status === 'completed') {
-                        f.stages[2].state = 'done';
-                        f.step = 'completed';
-                        f.show_url = data.show_url || null;
-                        this.successCount++;
-                    } else {
-                        f.stages[2].state = 'failed';
-                        f.step = 'failed';
-                        f.error = data.error_message || ('HTTP ' + resp.status + ' — ' + (data.message || 'Gagal tak terduga'));
-                    }
-                } catch (err) {
-                    if (f.stages[0].state === 'running') f.stages[0].state = 'failed';
-                    if (f.stages[1].state === 'running') f.stages[1].state = 'failed';
-                    if (f.stages[2].state === 'running') f.stages[2].state = 'failed';
-                    f.step = 'failed';
-                    f.error = (err && err.message) || 'Network gagal — cek koneksi.';
-                }
-                this.doneCount++;
-                // Jeda 4 detik antar file agar tidak memukul habis kuota
-                // Gemini free tier (20 req/menit). Multi-upload 5 file = 20 req
-                // spread over ~80-120s, aman di bawah 20 RPM.
-                if (this.doneCount < this.queue.length) {
-                    await new Promise(r => setTimeout(r, 4000));
-                }
-            }
-
-            this.uploading = false;
-            this.currentFileName = '';
-        },
-
-        closeModal() {
-            this.modalOpen = false;
-            // refresh halaman untuk menampilkan hasil terbaru di Recent Activity
-            if (! this.uploading && this.successCount > 0) {
-                setTimeout(() => location.reload(), 200);
-            }
-        },
-        goToHistory() {
-            location.href = '{!! route('strategic-advisor.history') !!}';
-        },
-        resetCompletedAndRetry() {
-            // Reset failed items; remove successful from queue.
-            // Keep IDs from failed ones so retry re-processes only them.
-            const failedOnly = this.queue.filter(f => f.step === 'failed');
-            if (failedOnly.length === 0) return;
-            for (const f of failedOnly) {
-                f.step = 'queueing';
-                f.error = null;
-                f.show_url = null;
-                f.stages = [
-                    { label: 'Mengirim dokumen ke server', state: 'pending' },
-                    { label: 'Ekstraksi struktur dokumen', state: 'pending' },
-                    { label: 'AI analisis + grounding tren internet', state: 'pending' },
-                ];
-            }
-            this.queue = failedOnly;
-            this.doneCount = 0;
-            this.successCount = 0;
-            this.startUpload();
         },
     };
 }

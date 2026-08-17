@@ -68,13 +68,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/ai-analysis', [AiAnalysisController::class, 'index'])->name('ai-analysis.index');
     Route::get('/ai-analysis/{aiResult}', [AiAnalysisController::class, 'show'])->name('ai-analysis.show');
 
-    // Strategic Advisor (upload PDF → grounded AI recommendations)
+    // Strategic Advisor (knowledge base dokumen + Q&A dengan sitasi & tren)
     Route::get('/strategic-advisor', [StrategicAdvisorController::class, 'index'])->name('strategic-advisor.index');
-    Route::post('/strategic-advisor', [StrategicAdvisorController::class, 'store'])->name('strategic-advisor.store');
-    Route::post('/strategic-advisor/upload-ajax', [StrategicAdvisorController::class, 'uploadAjax'])->name('strategic-advisor.upload-ajax');
+    Route::post('/strategic-advisor/documents', [StrategicAdvisorController::class, 'storeDocument'])->name('strategic-advisor.documents.store');
+    Route::delete('/strategic-advisor/documents/{document}', [StrategicAdvisorController::class, 'destroyDocument'])->name('strategic-advisor.documents.destroy');
+    Route::post('/strategic-advisor/ask', [StrategicAdvisorController::class, 'ask'])->name('strategic-advisor.ask');
     Route::get('/strategic-advisor/history', [StrategicAdvisorController::class, 'history'])->name('strategic-advisor.history');
-    Route::get('/strategic-advisor/{strategicRecommendation}', [StrategicAdvisorController::class, 'show'])->name('strategic-advisor.show');
-    Route::delete('/strategic-advisor/{strategicRecommendation}', [StrategicAdvisorController::class, 'destroy'])->name('strategic-advisor.destroy');
+    Route::get('/strategic-advisor/messages/{advisorMessage}', [StrategicAdvisorController::class, 'show'])->name('strategic-advisor.show');
 
     // Reports
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');

@@ -169,6 +169,67 @@ class DocumentExtractorService
         }
     }
 
+    /**
+     * Ekstrak teks PDF PER HALAMAN — dipakai fitur Strategic Advisor (alur
+     * knowledge base) agar Gemini dapat mengutip sumber secara presisi
+     * ("berdasarkan dokumen X halaman Y").
+     *
+     * `pdftotext` memisahkan halaman dengan karakter form-feed (0x0C), jadi
+     * cukup SATU panggilan process untuk seluruh dokumen lalu split pada
+     * 0x0C — jauh lebih cepat daripada memanggil pdftotext per halaman
+     * (`-f N -l N`) untuk dokumen ratusan halaman.
+     *
+     * Return shape:
+     *   [
+     *     'pages'         => string[], // index 0 = halaman 1 (elemen bisa '' bila halaman kosong)
+     *     'total_pages'   => int,      // prioritas pdfinfo, fallback count(pages)
+     *     'document_type' => string,
+     *     'company'       => ?string,
+     *     'period'        => ?string,
+     *     'error_message' => ?string,  // non-fatal warning
+     *   ]
+     */
+    public function extractPerPage(string $pdfPath): array
+    {
+        $absPath = $this->resolvePath($pdfPath);
+
+        if (! is_file($absPath)) {
+            throw new \RuntimeException("File tidak ditemukan: {$absPath}");
+        }
+
+        $raw  = $this->pdfToText($absPath);
+        $raw  = str_replace(["\r\n", "\r"], "\n", $raw);
+
+        $trimMask = " \t\n\r\0\x0B";
+        $pages = array_map(
+            fn (string $p): string => trim($p, $trimMask),
+            explode("\x0C", $raw),
+        );
+
+        // pdftotext selalu mengakhiri output dengan form-feed sehingga elemen
+        // terakhir biasanya string kosong — buang hanya bila kosong.
+        if (count($pages) > 1 && end($pages) === '') {
+            array_pop($pages);
+        }
+
+        $totalPages = $this->countPdfPages($absPath);
+        if ($totalPages === 0 || $totalPages === count($pages) - 1) {
+            $totalPages = max(count($pages), 1);
+        }
+
+        // Metadata (tipe dokumen dsb.) dideteksi dari gabungan seluruh teks.
+        $fullText = implode("\n", $pages);
+
+        return [
+            'pages'         => array_values($pages),
+            'total_pages'   => $totalPages,
+            'document_type' => $this->detectDocumentType($fullText),
+            'company'       => $this->extractCompany($fullText),
+            'period'        => $this->extractPeriod($fullText),
+            'error_message' => trim($raw) === '' ? 'Ekstraksi menghasilkan teks kosong — kemungkinan PDF hasil scan (image-only) tanpa layer teks.' : null,
+        ];
+    }
+
     // ---------- pipeline ----------
 
     /** Konversi PDF ke text murni. Pakai -layout untuk mempertahankan tabel.
@@ -752,7 +813,7 @@ class DocumentExtractorService
      *  - Hasil relevan dengan query strategis ("sasaran KPI inisiatif visi
      *    misi tren strategis roadmap PTI arah")
      *
-     * Dipakai StrategicAdvisorService saat dokumen sangat besar
+     * Dipakai alur Strategic Advisor lama saat dokumen sangat besar
      * (totalPages > 50 atau text > 50KB).
      */
     public function extractRelevantExcerpt(
@@ -894,8 +955,11 @@ class DocumentExtractorService
      * Tokenizer sederhana (lowercase alfanumerik + underscore, min length 3).
      * Didesain untuk dokumen Indonesia/Inggris mix tanpa stopwords removal
      * (stopwords otomatis rendah-IDF di dokumen besar sehingga self-prune).
+     *
+     * Public sejak alur Strategic Advisor knowledge-base — dipakai
+     * AdvisorChatService untuk retrieval TF-IDF per halaman lintas dokumen.
      */
-    protected function tokenize(string $text): array
+    public function tokenize(string $text): array
     {
         $text = mb_strtolower($text);
         // split pada non-alfanumerik

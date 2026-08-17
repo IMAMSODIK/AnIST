@@ -403,6 +403,146 @@ PROMPT;
     }
 
     /**
+     * Generate prompt untuk alur CHAT Strategic Advisor (knowledge base).
+     *
+     * Berbeda dengan `generateStrategicAdvisorPrompt()` (one-shot analysis
+     * per dokumen), prompt ini menjawab PERTANYAAN user berdasarkan potongan
+     * halaman yang sudah dipilih via retrieval TF-IDF dari SEMUA dokumen di
+     * knowledge base. Tiap potongan diberi label `[DOKUMEN: ... | HALAMAN: ...]`
+     * sehingga Gemini dapat mengutip sumber secara presisi:
+     * "berdasarkan dokumen X pada halaman Y ...".
+     *
+     * Google Search grounding diaktifkan terpisah di GeminiService agar
+     * saran juga mempertimbangkan tren internet terkini.
+     *
+     * @param string    $question  Pertanyaan / permintaan saran dari user.
+     * @param string    $context   Blok konteks berlabel dokumen+halaman.
+     * @param array     $documents Metadata dokumen di knowledge base (name, document_type, dll).
+     * @param array     $history   Riwayat percakapan singkat [{question, answer}].
+     */
+    public function generateAdvisorChatPrompt(
+        string $question,
+        string $context,
+        array $documents = [],
+        array $history = [],
+    ): string {
+        $docLines = [];
+        foreach ($documents as $d) {
+            $type    = $d['document_type'] ?? 'unknown';
+            $company = $d['company'] ?? '';
+            $period  = $d['period'] ?? '';
+            $pages   = $d['total_pages'] ?? 0;
+            $docLines[] = "- {$d['name']} (tipe: {$type}"
+                . ($company !== '' ? ", perusahaan: {$company}" : '')
+                . ($period !== '' ? ", periode: {$period}" : '')
+                . ", {$pages} halaman)";
+        }
+        $docList = implode("\n", $docLines);
+
+        $historyBlock = '';
+        if (! empty($history)) {
+            $turns = [];
+            foreach ($history as $h) {
+                $turns[] = "User: {$h['question']}\nAssistant: {$h['answer']}";
+            }
+            $historyBlock = "\n## Riwayat Percakapan Sebelumnya (ringkas)\n" . implode("\n\n", $turns) . "\n";
+        }
+
+        return <<<PROMPT
+Anda adalah Senior Strategic Advisor AI untuk BUMN Indonesia, spesialis perencanaan strategis (RJPP), master plan teknologi informasi (MPTI), dan transformasi digital. Anda memiliki akses ke:
+1. Potongan isi dokumen dari knowledge base user — tiap potongan BERLABEL dokumen dan halamannya (lihat bawah).
+2. Google Search grounding untuk mengambil tren internet, regulasi, dan best-practice TERKINI.
+
+## Dokumen di Knowledge Base
+{$docList}
+
+## Potongan Isi Dokumen (konteks utama — perhatikan label DOKUMEN dan HALAMAN)
+{$context}
+{$historyBlock}
+## Pertanyaan User
+{$question}
+
+## Tugas Anda
+1. **Jawab pertanyaan di atas berdasarkan POTONGAN DOKUMEN yang diberikan.**
+   - Setiap klaim yang bersumber dari dokumen WAJIB menyebutkan sumbernya
+     secara inline dengan format: "berdasarkan dokumen {nama_dokumen} pada
+     halaman {nomor_halaman}, ..." atau "(Dokumen: {nama_dokumen}, Halaman: {n})".
+   - Bila informasi tersebar di beberapa dokumen / halaman, rujuk SEMUANYA,
+     misalnya: "Dokumen A (hal. 12) menyebut ... sementara Dokumen B
+     (hal. 45) menegaskan ...". Jangan hanya menyebut satu sumber bila ada
+     dokumen lain yang juga relevan.
+   - Isi `answer` ditulis dalam Bahasa Indonesia, format markdown, panjang
+     200-600 kata (boleh lebih bila pertanyaan kompleks), dengan struktur
+     jelas (poin/bagian bila perlu).
+
+2. **Citations** — daftarkan SEMUA sumber yang Anda rujuk di `answer`:
+   - `document` = nama dokumen PERSIS seperti pada label
+   - `page` = nomor halaman sesuai label
+   - `quote` = kutipan singkat (maks 2 kalimat) dari potongan tersebut.
+
+3. **Trends** — bila pertanyaan meminta saran / rekomendasi strategis
+   (atau menjawabnya akan lebih baik dengan konteks eksternal), sertakan
+   3-6 item berbasis tren internet / industri TERKINI. Setiap item bukan
+   sekadar deskripsi tren, melainkan SARAN yang dibangun di atas tren:
+   jelaskan trennya, lalu apa yang sebaiknya perusahaan LAKUKAN
+   mempertimbangkan tren tersebut — dikaitkan dengan sasaran / inisiatif /
+   kondisi di dokumen bila relevan. Isi `relevance` dengan 3-5 kalimat
+   saran yang konkret dan actionable.
+   - `trend` = nama tren + arah sarannya, ringkas (mis. "Adopsi AI generatif
+     untuk otomasi layanan publik — pertimbangkan pilot di kanal X").
+   - `relevance` = saran lengkap berbasis tren tersebut (3-5 kalimat):
+     apa trennya, implikasinya bagi perusahaan, dan langkah yang
+     direkomendasikan, dikaitkan dengan dokumen bila ada kaitannya.
+   - `source` = WAJIB menyebut minimal SATU sumber konkret dan nyata yang
+     dapat diverifikasi — nama publikasi / lembaga / laporan / riset,
+     idealnya dengan tahun (mis. "Gartner Top Strategic Technology Trends
+     2025", "McKinsey Global Survey on AI 2025", "World Economic Forum —
+     Global Risks Report 2025", "Deloitte Tech Trends 2025"). Bila live
+     grounding aktif, pakai domain/nama sumber hasil pencarian yang
+     benar-benar Anda baca. Bila grounding tidak aktif, pilih sumber riil
+     dari knowledge cutoff yang memang menerbitkan topik tersebut, lalu
+     tambahkan suffix "(estimasi berdasarkan knowledge cutoff)" SETELAH
+     nama sumber — DILARANG menuliskan disclaimer saja tanpa nama sumber,
+     dan DILARANG mengarang URL atau sumber fiktif.
+
+4. **Recommendations** — bila relevan, berikan 2-5 saran konkret dan
+   action-oriented. Setiap saran WAJIB mengaitkan bukti dokumen (dengan
+   sitasi dokumen+halaman) DAN bila mungkin tren terkini.
+
+## Aturan Ketat
+- DILARANG mengarang klaim, angka, tanggal, atau nama yang tidak ada pada
+  potongan dokumen. Bila informasi tidak tersedia di konteks, katakan
+  secara eksplisit "informasi tersebut tidak tersedia dalam dokumen yang
+  diunggah".
+- DILARANG menjawab hanya dari pengetahuan umum tanpa menyebut dokumen
+  bila jawabannya tersedia di potongan dokumen.
+- Setiap item tren WAJIB punya `source` berupa nama sumber konkret
+  (publikasi / lembaga / laporan, disertai tahun bila memungkinkan).
+  Disclaimer knowledge cutoff hanya boleh menempel SETELAH nama sumber —
+  bukan sebagai pengganti sumber.
+- Format sitasi harus konsisten dan mudah dibaca eksekutif.
+- Output WAJIB berupa SATU JSON object valid, tanpa pembungkus markdown
+  ` ```json ` dan tanpa teks tambahan di luar JSON.
+
+## Format Output
+{
+  "answer": "string markdown dengan sitasi inline (Dokumen + Halaman)",
+  "citations": [
+    { "document": "", "page": 0, "quote": "" }
+  ],
+  "trends": [
+    { "trend": "", "relevance": "", "source": "" }
+  ],
+  "recommendations": [
+    { "title": "", "detail": "" }
+  ]
+}
+
+PENTING: Kembalikan HANYA JSON object, tanpa markdown wrapper dan tanpa teks di luar JSON.
+PROMPT;
+    }
+
+    /**
      * Format list of KPIs extracted from a strategic document as a compact
      * bulleted block for embedding inside the strategic-advisor prompt.
      */
@@ -894,6 +1034,14 @@ HINT;
             return $this->getCybersecurityPrompt();
         }
 
+        // Percepatan proses pembayaran (sharing KPI, OMTI 2026 Divisi TI #4)
+        // — DURATION KPI (unit Hari, Lower is Better, target 14 hari/triwulan).
+        // Must be checked BEFORE the SLA branch (initiative mentions SLA
+        // 98%/92%) and BEFORE generic payment (gateway % metrics).
+        if ($this->isPaymentCycle($name)) {
+            return $this->getPaymentCyclePrompt();
+        }
+
         // SLA / infrastructure availability must be checked BEFORE payment,
         // because the measurement name "Percepatan proses pembayaran (sharing
         // KPI)" contains the word "pembayaran" and would otherwise be
@@ -1278,6 +1426,62 @@ Focus on:
 - Settlement rates and timing
 - Error rates and resolution
 - Digital payment adoption rates
+PROMPT;
+    }
+
+    /**
+     * Detect the payment-cycle sharing KPI ("Percepatan proses pembayaran
+     * (sharing KPI)" — OMTI 2026 Divisi TI #4). This is a DURATION KPI:
+     * unit = Hari, formula = Lower is Better, target = 14 hari per triwulan.
+     */
+    protected function isPaymentCycle(string $name): bool
+    {
+        return str_contains($name, 'percepatan proses pembayaran');
+    }
+
+    /**
+     * Specialised prompt for the payment-cycle sharing KPI.
+     *
+     * realisasi = durasi rata-rata (dalam HARI) siklus proses pembayaran
+     * yang terdokumentasi pada evidence: dari penerimaan dokumen/tagihan
+     * hingga pembayaran berhasil diproses. Laporan SLA Network/Aplikasi
+     * hanya evidence PENDUKUNG (initiative) — jika evidence SLA tidak
+     * memuat angka durasi hari, Gemini TIDAK boleh mengarang durasi dari
+     * persentase uptime.
+     */
+    protected function getPaymentCyclePrompt(): string
+    {
+        return <<<'PROMPT'
+# Evidence Analysis: Percepatan Proses Pembayaran (Sharing KPI — Durasi)
+
+## Konteks KPI
+- Unit: Hari. Formula: Lower is Better. Target: maksimal 14 hari per triwulan.
+- KPI ini mengukur durasi rata-rata siklus proses pembayaran: dari penerimaan
+  dokumen/tagihan hingga pembayaran berhasil diproses.
+- Kontribusi Divisi TI (initiative): menjaga Ketersediaan Infrastruktur dan
+  Aplikasi dengan pemenuhan SLA Network 98% dan Aplikasi 92% — laporan SLA
+  adalah evidence PENDUKUNG, bukan sumber angka durasi.
+
+## Cara Menentukan realisasi
+1. Cari pada evidence angka durasi siklus pembayaran dalam HARI, misalnya:
+   - Tanggal terima dokumen/tagihan dan tanggal pembayaran diproses
+     (durasi = selisih hari), atau
+   - Rata-rata hari proses pembayaran yang dinyatakan langsung oleh laporan.
+2. `realisasi` = rata-rata durasi (hari) dari seluruh transaksi/dokumen yang
+   terdokumentasi pada evidence. Pembulatkan ke 2 desimal bila perlu.
+3. Bila evidence HANYA berisi laporan SLA Network/Aplikasi (persentase
+   uptime) TANPA angka durasi hari pembayaran: set `evidence_valid` = false
+   dengan alasan "evidence tidak memuat durasi siklus pembayaran (hanya
+   persentase ketersediaan)" dan `realisasi` = 0. DILARANG mengonversi atau
+   mengarang durasi hari dari persentase uptime.
+4. Bila evidence memuat DURASI dan juga laporan SLA, tetap gunakan durasi
+   hari sebagai `realisasi`, dan sebutkan pemenuhan SLA di `analysis`
+   sebagai faktor pendukung.
+
+## Aturan
+- `realisasi` dalam SATUAN HARI (bukan persen, bukan 0-1).
+- Analisis harus menyebut durasi yang terbaca, pembanding terhadap target
+  14 hari, dan (bila ada) status SLA Network/Aplikasi sebagai enabler.
 PROMPT;
     }
 

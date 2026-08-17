@@ -85,15 +85,17 @@ class MeasurementSeeder extends Seeder
             ],
 
             // #4 — INTERNAL BUSINESS PROCESS / Operational Excellence
-            // Shared KPI: IT's contribution = maintaining SLA Network 98%
-            // and Aplikasi 92%. Evidence in docs/percepatan/ are SLA reports.
+            // Sharing KPI: satuan Hari, target 14 hari per triwulan (siklus
+            // penerimaan dokumen/tagihan s.d. pembayaran diproses) — makin
+            // kecil makin baik. SLA Network 98% / Aplikasi 92% adalah teks
+            // kolom Initiative (lihat InitiativeSeeder), BUKAN target KPI.
             [
                 'perspective' => 'Internal Process',
                 'objective'   => 'Operational Excellence',
                 'measurement' => 'Percepatan proses pembayaran (sharing KPI)',
-                'definition'  => 'Indikator yang mengukur efektivitas dalam mempercepat siklus proses pembayaran, mulai dari penerimaan dokumen/tagihan hingga pembayaran berhasil diproses sesuai target yang ditetapkan. Ketersediaan Infrastruktur dan Aplikasi dengan pemenuhan SLA Network 98% dan Aplikasi sebesar 92%.',
-                'formula'     => 'Higher is Better',
-                'unit'        => '%',
+                'definition'  => 'Indikator yang mengukur efektivitas dalam mempercepat siklus proses pembayaran, mulai dari penerimaan dokumen/tagihan hingga pembayaran berhasil diproses sesuai target yang ditetapkan.',
+                'formula'     => 'Lower is Better',
+                'unit'        => 'Hari',
                 'weight'      => 10,
             ],
 

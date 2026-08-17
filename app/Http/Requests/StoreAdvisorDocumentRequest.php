@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreStrategicAdvisorRequest extends FormRequest
+class StoreAdvisorDocumentRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -23,7 +23,7 @@ class StoreStrategicAdvisorRequest extends FormRequest
         return [
             'file.required' => 'File PDF wajib diunggah.',
             'file.mimes'    => 'Hanya file PDF yang didukung.',
-            'file.max'      => 'Ukuran file maksimal 50MB.',
+            'file.max'      => 'Ukuran file maksimal 50MB per file.',
         ];
     }
 }

@@ -59,8 +59,9 @@ class TargetSeeder extends Seeder
             // #3 Traceability — Based on Project Charter (target 100% each Q).
             'Pencapaian Project Management: Traceability'                  => ['Q1' => 100,  'Q2' => 100,   'Q3' => 100,   'Q4' => 100],
 
-            // #4 Percepatan pembayaran — sharing KPI mapped to SLA Aplikasi target 92%.
-            'Percepatan proses pembayaran (sharing KPI)'                   => ['Q1' => 92,   'Q2' => 92,    'Q3' => 92,    'Q4' => 92],
+            // #4 Percepatan pembayaran — sharing KPI: maksimum 14 hari siklus
+            // pembayaran per triwulan (unit Hari, Lower is Better).
+            'Percepatan proses pembayaran (sharing KPI)'                   => ['Q1' => 14,   'Q2' => 14,    'Q3' => 14,    'Q4' => 14],
 
             // #5 Realisasi Nilai Investasi — annual 65, cumulative 0/18.04/34.13/65.
             'Realisasi Nilai Investasi (KPI BP.BUMN)'                       => ['Q1' => 0,    'Q2' => 18.04, 'Q3' => 34.13, 'Q4' => 65],
