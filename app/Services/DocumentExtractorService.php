@@ -5,6 +5,7 @@ namespace App\Services;
 use App\DTO\DocumentExtractionDTO;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Smalot\PdfParser\Parser;
 use Spatie\PdfToText\Pdf;
 use Throwable;
 
@@ -51,6 +52,7 @@ class DocumentExtractorService
 
     /** Marker tipe dokumen pada baris awal / title halaman. */
     protected const RJPP_MARKERS = ['rencana jangka panjang perusahaan', 'rjpp'];
+
     protected const MPTI_MARKERS = ['master plan teknologi informasi', 'master plan ti', 'mpti'];
 
     /** Path absolut binary pdftotext (dapat di-override via config). */
@@ -62,9 +64,9 @@ class DocumentExtractorService
     }
 
     /** Extract dari path file PDF di disk (absolute atau relatif storage).
-     *  @param int $maxPages  Limitasi jumlah halaman yang dibaca pdftotext (0 = tanpa limit).
-     *                        Berguna untuk Strategic Advisor yang targetnya hanya section
-     *                        strategis awal dokumen (visi/misi/KPI/inisiatif), agar ekstraksi
+     * @param  int  $maxPages  Limitasi jumlah halaman yang dibaca pdftotext (0 = tanpa limit).
+     *                         Berguna untuk Strategic Advisor yang targetnya hanya section
+     *                         strategis awal dokumen (visi/misi/KPI/inisiatif), agar ekstraksi
      *                        dokumen 200-1000 halaman tidak memakan 30+ detik. */
     public function extract(string $pdfPath, int $maxPages = 0): DocumentExtractionDTO
     {
@@ -123,7 +125,7 @@ class DocumentExtractorService
                 $relevantExcerpt = $this->extractRelevantExcerpt($text, maxChars: 30000);
                 Log::debug('DocumentExtractor relevant excerpt', [
                     'total_pages' => $totalPages,
-                    'text_len'    => $textLen,
+                    'text_len' => $textLen,
                     'excerpt_len' => strlen($relevantExcerpt ?? ''),
                 ]);
             }
@@ -197,8 +199,8 @@ class DocumentExtractorService
             throw new \RuntimeException("File tidak ditemukan: {$absPath}");
         }
 
-        $raw  = $this->pdfToText($absPath);
-        $raw  = str_replace(["\r\n", "\r"], "\n", $raw);
+        $raw = $this->pdfToText($absPath);
+        $raw = str_replace(["\r\n", "\r"], "\n", $raw);
 
         $trimMask = " \t\n\r\0\x0B";
         $pages = array_map(
@@ -221,11 +223,11 @@ class DocumentExtractorService
         $fullText = implode("\n", $pages);
 
         return [
-            'pages'         => array_values($pages),
-            'total_pages'   => $totalPages,
+            'pages' => array_values($pages),
+            'total_pages' => $totalPages,
             'document_type' => $this->detectDocumentType($fullText),
-            'company'       => $this->extractCompany($fullText),
-            'period'        => $this->extractPeriod($fullText),
+            'company' => $this->extractCompany($fullText),
+            'period' => $this->extractPeriod($fullText),
             'error_message' => trim($raw) === '' ? 'Ekstraksi menghasilkan teks kosong — kemungkinan PDF hasil scan (image-only) tanpa layer teks.' : null,
         ];
     }
@@ -233,26 +235,56 @@ class DocumentExtractorService
     // ---------- pipeline ----------
 
     /** Konversi PDF ke text murni. Pakai -layout untuk mempertahankan tabel.
-     *  @param int $maxPages  0 = tanpa limit. >0 pass `-l <n>` agar pdftotext
-     *                        berhenti setelah halaman ke-<n>. */
+     * @param  int  $maxPages  0 = tanpa limit. >0 pass `-l <n>` agar pdftotext
+     *                         berhenti setelah halaman ke-<n>.
+     *
+     *  Strategi dua lapis:
+     *   1. BINARY pdftotext (poppler) via wrapper Spatie — cepat & akurat,
+     *      dipakai bila binary tersedia (lokal / VPS).
+     *   2. FALLBACK pure-PHP (smalot/pdfparser) — untuk shared hosting yang
+     *      tidak menyediakan binary pdftotext. Output tetap dijoin dengan
+     *      form-feed (0x0C) per halaman agar downstream (extractPerPage,
+     *      defragment) bekerja identik.
+     */
     protected function pdfToText(string $absPath, int $maxPages = 0): string
     {
-        // Spatie wrapper: setiap elemen array di-prefix dengan "-".
-        // Untuk pasangan flag+value (mis. -enc UTF-8), gunakan satu string
-        // "enc UTF-8" agar prefix "-" hanya menempel pada flag.
         $options = [
             'layout',
             'enc UTF-8',
         ];
         if ($maxPages > 0) {
-            $options[] = 'l ' . (int) $maxPages;
+            $options[] = 'l '.(int) $maxPages;
         }
 
-        if ($this->pdfBinary) {
+        if ($this->pdfBinary && class_exists(Pdf::class)) {
             return Pdf::getText($absPath, $this->pdfBinary, $options);
         }
 
-        return Pdf::getText($absPath, null, $options);
+        return $this->pdfToTextPhp($absPath, $maxPages);
+    }
+
+    /** Fallback ekstraksi teks PDF murni-PHP via smalot/pdfparser.
+     *  Dipakai ketika binary pdftotext tidak tersedia (shared hosting). */
+    protected function pdfToTextPhp(string $absPath, int $maxPages = 0): string
+    {
+        $parser = new Parser;
+        $pdf = $parser->parseFile($absPath);
+        $pages = $pdf->getPages();
+
+        if ($maxPages > 0) {
+            $pages = array_slice($pages, 0, $maxPages);
+        }
+
+        $texts = [];
+        foreach ($pages as $page) {
+            try {
+                $texts[] = $page->getText();
+            } catch (Throwable) {
+                $texts[] = '';
+            }
+        }
+
+        return implode("\x0C", $texts);
     }
 
     /** Hitung jumlah halaman PDF via pdfinfo jika tersedia, fallback heuristik. */
@@ -264,6 +296,16 @@ class DocumentExtractorService
             $output = @shell_exec($cmd.' 2>&1');
             if ($output && preg_match('/Pages:\s+(\d+)/i', $output, $m)) {
                 return (int) $m[1];
+            }
+        }
+
+        // Fallback murah: hitung marker "/Type /Page" pada bytes PDF.
+        // Akurat untuk mayoritas PDF yang tidak terkompresi objeknya.
+        $content = @file_get_contents($absPath, false, null, 0, 5_000_000);
+        if ($content !== false) {
+            $count = preg_match_all('/\/Type\s*\/Page[\s\/>]/', $content);
+            if ($count > 0) {
+                return (int) $count;
             }
         }
 
@@ -291,6 +333,7 @@ class DocumentExtractorService
             }
             if ($line === '') {
                 $out[] = '';
+
                 continue;
             }
             $out[] = $line;
@@ -366,6 +409,7 @@ class DocumentExtractorService
             $lower = Str::lower($orig);
             if ($lower === 'daftar isi') {
                 $inToc = true;
+
                 continue;
             }
             if (! $inToc) {
@@ -382,11 +426,13 @@ class DocumentExtractorService
             // 1) "BAB I PENDAHULUAN ... 9"
             if (preg_match('/^(BAB\s+[IVXLCDM]+|LAMPIRAN\s+[A-Z])\s+(.+?)\s+(\d{1,4})\s*$/u', $orig, $m)) {
                 $toc[] = ['code' => $m[1], 'title' => trim($m[2]), 'page' => (int) $m[3]];
+
                 continue;
             }
             // 2) "1.1 Latar Belakang 9"
             if (preg_match('/^(\d+\.\d+)\s+(.+?)\s+(\d{1,4})\s*$/u', $orig, $m)) {
                 $toc[] = ['code' => $m[1], 'title' => trim($m[2]), 'page' => (int) $m[3]];
+
                 continue;
             }
         }
@@ -530,6 +576,7 @@ class DocumentExtractorService
                     [trim(substr($line, strlen($currentCode)))],
                 );
                 $pendingWrap = [];
+
                 continue;
             }
             if ($currentCode === null) {
@@ -576,6 +623,7 @@ class DocumentExtractorService
                     } elseif ($numCount === 2) {
                         $target = $c;          // kedua terkanan
                     }
+
                     continue;
                 }
                 if ($unit === '' && preg_match($unitRegex, $c)) {
@@ -629,6 +677,7 @@ class DocumentExtractorService
             // Pola: "IS-001 : Implementasi ERP Core" / "PTI-001 : ..." / "1. Implementasi ..."
             if (preg_match('/^(IS|PTI)-?0*[0-9]{2,3}\s*[:\-]\s*(.+)$/u', $line, $m)) {
                 $initiatives[] = ['code' => $m[1], 'name' => trim($m[2])];
+
                 continue;
             }
             if (preg_match('/^\d+\.\s+(.+)$/', $line, $m) && strlen($m[1]) > 10 && count($initiatives) < 200) {
@@ -680,6 +729,7 @@ class DocumentExtractorService
                     }
                 }
                 $sos[] = ['code' => $code, 'name' => $name, 'perspective' => $perspective];
+
                 continue;
             }
             // pola numerik bullet "1. Meningkatkan ..."
@@ -733,17 +783,31 @@ class DocumentExtractorService
 
     protected function resolveBinary(string $name): ?string
     {
-        $where = @shell_exec('where '.escapeshellarg($name).' 2>&1');
-        if ($where && preg_match('/^(.+\.exe|.+\/[a-z_-]+)$/m', trim($where), $m)) {
-            $candidate = trim($m[1]);
-            if ($this->binaryWorks($candidate)) {
-                return $candidate;
+        if (PHP_OS_FAMILY === 'Windows') {
+            $where = @shell_exec('where '.escapeshellarg($name).' 2>&1');
+            if ($where && preg_match('/^(.+\.exe|.+\/[a-z_-]+)$/m', trim($where), $m)) {
+                $candidate = trim($m[1]);
+                if ($this->binaryWorks($candidate)) {
+                    return $candidate;
+                }
             }
+            // Fallback windows Get-Command
+            $gcm = @shell_exec('powershell -NoProfile -Command "(Get-Command -Name '.escapeshellarg($name).' -ErrorAction SilentlyContinue).Source"');
+            if ($gcm) {
+                $candidate = trim($gcm);
+                if ($candidate !== '' && $this->binaryWorks($candidate)) {
+                    return $candidate;
+                }
+            }
+
+            return null;
         }
-        // Fallback windows Get-Command
-        $gcm = @shell_exec('powershell -NoProfile -Command "(Get-Command -Name '.escapeshellarg($name).' -ErrorAction SilentlyContinue).Source"');
-        if ($gcm) {
-            $candidate = trim($gcm);
+
+        // Linux / shared hosting: pakai `which` (command tidak tersedia
+        // umumnya di shared hosting, jadi cepat return null).
+        $which = @shell_exec('which '.escapeshellarg($name).' 2>/dev/null');
+        if ($which) {
+            $candidate = trim($which);
             if ($candidate !== '' && $this->binaryWorks($candidate)) {
                 return $candidate;
             }
@@ -752,7 +816,7 @@ class DocumentExtractorService
         return null;
     }
 
-    protected function binaryWorks(string $path): bool
+    protected function binaryWorks(string $path, ?string $name = null): bool
     {
         if (! file_exists($path)) {
             return false;
@@ -760,9 +824,10 @@ class DocumentExtractorService
         if (PHP_OS_FAMILY === 'Windows') {
             return true; // tidak bisa cek -version dengan aman, andalkan keberadaan file
         }
+        $name ??= 'pdftotext';
         $out = @shell_exec('"'.$path.'" -v 2>&1');
 
-        return $out !== null && stripos($out, 'pdftotext') !== false;
+        return $out !== null && (stripos($out, $name) !== false || stripos($out, 'poppler') !== false);
     }
 
     protected function resolvePath(string $pdfPath): string
@@ -828,9 +893,14 @@ class DocumentExtractorService
         // filter noise — skip paragraph <80 char (judul singkat / footer)
         $paragraphs = array_values(array_filter($paragraphs, function ($p) {
             $p = trim($p);
-            if (mb_strlen($p) < 80) return false;
+            if (mb_strlen($p) < 80) {
+                return false;
+            }
             // drop halaman-number-only / running headers
-            if (preg_match('/^\s*\d{1,4}\s*$/', $p)) return false;
+            if (preg_match('/^\s*\d{1,4}\s*$/', $p)) {
+                return false;
+            }
+
             return true;
         }));
         if (empty($paragraphs)) {
@@ -907,11 +977,15 @@ class DocumentExtractorService
             // iterate smaller vector agar cepat
             if (count($qVec) < count($vec)) {
                 foreach ($qVec as $t => $w) {
-                    if (isset($vec[$t])) $score += $w * $vec[$t];
+                    if (isset($vec[$t])) {
+                        $score += $w * $vec[$t];
+                    }
                 }
             } else {
                 foreach ($vec as $t => $w) {
-                    if (isset($qVec[$t])) $score += $w * $qVec[$t];
+                    if (isset($qVec[$t])) {
+                        $score += $w * $qVec[$t];
+                    }
                 }
             }
             $scores[$i] = $score;
@@ -926,17 +1000,27 @@ class DocumentExtractorService
         $totalChars = 0;
         $seenSignatures = [];
         foreach ($scores as $i => $score) {
-            if ($score <= 0.0) break;
+            if ($score <= 0.0) {
+                break;
+            }
             $para = trim($paragraphs[$i]);
-            if ($para === '') continue;
+            if ($para === '') {
+                continue;
+            }
             // dedupe by signature (first 80 char lowercase) untuk drop boilerplate
             $sig = mb_strtolower(mb_substr($para, 0, 80));
-            if (isset($seenSignatures[$sig])) continue;
+            if (isset($seenSignatures[$sig])) {
+                continue;
+            }
             $seenSignatures[$sig] = true;
             $selectedIndices[$i] = $score;
             $totalChars += mb_strlen($para) + 2;
-            if ($totalChars >= $maxChars) break;
-            if (count($selectedIndices) >= 30) break;
+            if ($totalChars >= $maxChars) {
+                break;
+            }
+            if (count($selectedIndices) >= 30) {
+                break;
+            }
         }
         if (empty($selectedIndices)) {
             return Str::limit($fullText, $maxChars);
@@ -948,6 +1032,7 @@ class DocumentExtractorService
         foreach ($selectedIndices as $i => $_) {
             $out[] = $paragraphs[$i];
         }
+
         return implode("\n\n", $out);
     }
 
@@ -966,12 +1051,19 @@ class DocumentExtractorService
         $parts = preg_split('/[^a-z0-9]+/u', $text) ?: [];
         $tokens = [];
         foreach ($parts as $p) {
-            if ($p === '') continue;
-            if (mb_strlen($p) < 3) continue;
+            if ($p === '') {
+                continue;
+            }
+            if (mb_strlen($p) < 3) {
+                continue;
+            }
             // skip angka murni (halaman jumlah)
-            if (preg_match('/^\d+$/', $p)) continue;
+            if (preg_match('/^\d+$/', $p)) {
+                continue;
+            }
             $tokens[] = $p;
         }
+
         return $tokens;
     }
 }
